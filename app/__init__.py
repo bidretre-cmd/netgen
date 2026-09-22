@@ -37,9 +37,18 @@ def create_app():
     
     database_url = os.environ.get('DATABASE_URL')
     if database_url:
+        import re
+        database_url = database_url.strip().strip('"').strip("'")
+        # Bersihkan tanda kurung siku [password] jika pengguna menyertakannya dari template
+        database_url = re.sub(r':\[(.*?)\]@', r':\1@', database_url)
         # SQLAlchemy 1.4+ membutuhkan prefix 'postgresql://' bukan 'postgres://'
         if database_url.startswith('postgres://'):
             database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        # Pastikan sslmode=require untuk PostgreSQL / Supabase
+        if 'sslmode=' not in database_url and 'sqlite' not in database_url:
+            sep = '&' if '?' in database_url else '?'
+            database_url = f"{database_url}{sep}sslmode=require"
+            
         app.config['SQLALCHEMY_DATABASE_URI'] = database_url
         # Connection pool settings untuk PostgreSQL / Supabase
         app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
