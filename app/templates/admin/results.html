@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+{% block title %}Database Cookies — NF Manager{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">🗄️ Cookies Database</h1>
+    <p class="page-subtitle">
+      <strong style="color:var(--red);">{{ pagination.total }}</strong> cookies stored
+    </p>
+  </div>
+  <div class="flex gap-2" style="flex-wrap:wrap;">
+    <form method="POST" action="{{ url_for('admin.delete_expired') }}" onsubmit="return confirm('Delete all expired cookies?')">
+      <button class="btn btn-secondary btn-sm">🗑️ Delete Expired</button>
+    </form>
+    <!-- Dedup button — triggers modal -->
+    <button class="btn btn-sm" id="btnDedup"
+            style="background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;"
+            onclick="openDedupModal()">
+      🧹 Delete Duplicates
+    </button>
+    <!-- Recheck button — triggers modal -->
+    <button class="btn btn-sm" id="btnRecheck"
+            style="background:#f59e0b;color:#000;border:none;"
+            onclick="openRecheckModal()">
+      🔄 Recheck {% if service_filter %}{{ service_filter|upper }}{% else %}All{% endif %}
+    </button>
+    <form method="POST" action="{{ url_for('admin.delete_all') }}" onsubmit="return confirm('⚠️ Delete ALL cookies from the database? This action cannot be undone!')">
+      <button class="btn btn-danger btn-sm">🧨 Delete All</button>
+    </form>
+    <a href="{{ url_for('admin.check') }}" class="btn btn-primary btn-sm">🔍 New Check</a>
+  </div>
+</div>
+
+<!-- ══ DEDUP MODAL ══ -->
+<div id="dedupOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:200;overflow-y:auto;padding:24px 16px;">
+  <div style="background:#111114;border:1px solid rgba(124,58,237,0.45);border-radius:var(--radius-lg);max-width:480px;width:100%;margin:auto;box-shadow:0 0 80px rgba(124,58,237,0.3);overflow:visible;">
+
+    <!-- Modal header -->
+    <div style="padding:24px 24px 0;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <h3 style="font-size:18px;font-weight:800;color:var(--text);margin-bottom:4px;">🧹 Delete Duplicate Cookies</h3>
+        <p style="font-size:13px;color:var(--text-muted);">Analyze database to find duplicate entries</p>
+      </div>
+      <button onclick="closeDedupModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:22px;line-height:1;padding:4px;">×</button>
+    </div>
+
+    <!-- Modal body: loading state -->
+    <div id="dedupLoading" style="padding:40px 24px;text-align:center;">
+      <div class="spinner" style="margin:0 auto 16px;"></div>
+      <p style="color:var(--text-muted);font-size:14px;">Analyzing database...</p>
+    </div>
+
+    <!-- Modal body: stats -->
+    <div id="dedupStats" style="display:none;padding:20px 24px;">
+      <!-- Summary card -->
+      <div style="background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.2);border-radius:var(--radius-md);padding:16px;margin-bottom:16px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;text-align:center;">
+          <div>
+            <p id="statTotal" style="font-size:22px;font-weight:900;color:var(--text);">—</p>
+            <p style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;">Current Total</p>
+          </div>
+          <div>
+            <p id="statDelete" style="font-size:22px;font-weight:900;color:#ef4444;">—</p>
+            <p style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;">To Delete</p>
+          </div>
+          <div>
+            <p id="statAfter" style="font-size:22px;font-weight:900;color:#22c55e;">—</p>
+            <p style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;">After Clean</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detail breakdown -->
+      <div style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;">
+          <div>
+            <p style="font-size:13px;font-weight:600;color:var(--text);">📄 Duplicate by Cookie Content</p>
+            <p style="font-size:12px;color:var(--text-muted);" id="descText">— duplicate groups found</p>
+          </div>
+          <span id="statDupText" style="font-size:18px;font-weight:800;color:#f59e0b;">—</span>
+        </div>
+      </div>
+
+      <!-- No duplicates state -->
+      <div id="noDuplicates" style="display:none;text-align:center;padding:16px 0 8px;">
+        <div style="font-size:40px;margin-bottom:10px;">✅</div>
+        <p style="font-weight:700;color:var(--text);font-size:15px;">No duplicates!</p>
+        <p style="font-size:13px;color:var(--text-muted);">Database is clean.</p>
+      </div>
+
+      <!-- Action info -->
+      <div id="dedupActionInfo" style="background:var(--red-dim);border:1px solid rgba(229,9,20,0.2);border-radius:var(--radius-sm);padding:12px;font-size:12px;color:var(--text-muted);line-height:1.6;margin-bottom:16px;">
+        <strong style="color:var(--red);">ℹ️ Strategy:</strong>
+        For each duplicate group, the <strong>newest</strong> entry (highest ID) will be kept.
+        Old entries will be permanently deleted.
+      </div>
+    </div>
+
+    <!-- Modal footer -->
+    <div id="dedupFooter" style="display:none;padding:0 24px 24px;flex-direction:column;gap:10px;">
+      <form method="POST" action="{{ url_for('admin.delete_duplicates') }}" id="dedupForm">
+        <button type="submit" id="btnConfirmDedup" class="btn btn-danger btn-full"
+                style="background:linear-gradient(135deg,#7c3aed,#5b21b6);border:none;justify-content:center;padding:13px;">
+          🧹 Confirm Delete Duplicates
+        </button>
+      </form>
+      <button onclick="closeDedupModal()" class="btn btn-secondary btn-full" style="justify-content:center;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ RECHECK MODAL ══ -->
+<div id="recheckOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:200;overflow-y:auto;padding:24px 16px;">
+  <div style="background:#111114;border:1px solid rgba(245,158,11,0.45);border-radius:var(--radius-lg);max-width:480px;width:100%;margin:auto;box-shadow:0 0 80px rgba(245,158,11,0.3);overflow:visible;">
+
+    <!-- Modal header -->
+    <div style="padding:24px 24px 0;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <h3 style="font-size:18px;font-weight:800;color:var(--text);margin-bottom:4px;">🔄 Recheck Cookies</h3>
+        <p style="font-size:13px;color:var(--text-muted);">Invalid/expired cookies will be deleted</p>
+      </div>
+      <button onclick="closeRecheckModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:22px;line-height:1;padding:4px;">×</button>
+    </div>
+
+    <!-- Modal body -->
+    <div style="padding:20px 24px;">
+      <form method="POST" action="{{ url_for('admin.recheck_all', service=service_filter) }}" id="recheckForm" onsubmit="return confirm('Mulai recheck cookies? Cookies yang invalid/expired akan dihapus.')">
+        <div class="form-group mb-4">
+          <label class="form-label">Kategori Recheck</label>
+          <select name="plan_filter" class="form-control" style="background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.1);color:#fff;padding:10px;border-radius:6px;width:100%;">
+            <option value="all">Semua Cookies</option>
+            <option value="free">Hanya Free</option>
+            <option value="non_free">Selain Free (Premium/Berbayar)</option>
+          </select>
+        </div>
+
+        <div class="form-group mb-4">
+          <label class="form-label">Proxy <span class="text-muted" style="color:var(--gray) !important; font-weight:400;">(Opsional)</span></label>
+          <small class="text-muted" style="font-size:12px;display:block;margin-bottom:8px;">Anda bisa memasukkan proxy (opsional)</small>
+          <textarea name="proxies" id="recheckProxies" class="form-control" rows="5" placeholder="http://user:pass@ip:port&#10;socks5://ip:port"></textarea>
+        </div>
+        
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button type="submit" class="btn btn-full"
+                  style="background:#f59e0b;color:#000;border:none;justify-content:center;padding:13px;font-weight:700;">
+            🔄 Confirm Recheck
+          </button>
+          <button type="button" onclick="closeRecheckModal()" class="btn btn-secondary btn-full" style="justify-content:center;">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- FILTER -->
+<div class="card mb-4">
+  <form method="GET" class="filter-form">
+    <div class="form-group">
+      <label class="form-label">Service Filter</label>
+      <select name="service" class="form-control">
+        <option value="">All Services</option>
+        <option value="netflix" {% if service_filter=='netflix' %}selected{% endif %}>Netflix</option>
+        <option value="primevideo" {% if service_filter=='primevideo' %}selected{% endif %}>Prime Video</option>
+        <option value="udemy" {% if service_filter=='udemy' %}selected{% endif %}>Udemy</option>
+        <option value="crunchyroll" {% if service_filter=='crunchyroll' %}selected{% endif %}>Crunchyroll</option>
+        <option value="claude" {% if service_filter=='claude' %}selected{% endif %}>Claude</option>
+        <option value="gog" {% if service_filter=='gog' %}selected{% endif %}>GOG.com</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Plan Filter</label>
+      <select name="plan" class="form-control">
+        <option value="">All Plans</option>
+        {% for p in plans %}<option value="{{ p.plan_key }}" {% if plan_filter==p.plan_key %}selected{% endif %}>{{ p.plan_name or p.plan_key }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Country Filter</label>
+      <select name="country" class="form-control">
+        <option value="">All Countries</option>
+        {% for c in countries %}<option value="{{ c.country }}" {% if country_filter==c.country %}selected{% endif %}>{{ c.country }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="form-group search-group">
+      <label class="form-label">Search</label>
+      <input type="text" name="search" class="form-control" placeholder="Email, name, country..." value="{{ search }}">
+    </div>
+    <div class="filter-actions">
+      <button type="submit" class="btn btn-primary btn-sm">🔍 Filter</button>
+      <a href="{{ url_for('admin.results') }}" class="btn btn-secondary btn-sm">✕ Reset</a>
+    </div>
+  </form>
+</div>
+
+<!-- TABLE -->
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Service</th><th>Plan</th><th>Country</th><th>Email/Profile</th>
+        <th>Quality</th><th>Max Screens</th><th>Next Billing</th><th>Checked</th><th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in pagination.items %}
+      {% set badge_map = {'premium':'badge-premium','standard':'badge-standard','standard_with_ads':'badge-standard','basic':'badge-basic','mobile':'badge-mobile','free':'badge-free'} %}
+      <tr>
+        <td style="color:var(--text-muted);font-weight:600;">{{ c.id }}</td>
+        <td>{% set svc_colors = {'netflix':'#e50914'} %}<span class="badge" style="background:{{ svc_colors.get(c.service_type,'#3b82f6') }};color:#fff;">{{ c.service_type|upper }}</span></td>
+        <td><span class="badge {{ badge_map.get(c.plan_key,'') }}">{{ c.plan_name or c.plan_key }}</span></td>
+        <td>🌍 <strong>{{ c.country or '?' }}</strong></td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;">{{ c.email or c.account_name or '—' }}</td>
+        <td style="color:var(--text-muted);">{{ c.quality or '—' }}</td>
+        <td style="color:var(--text-muted);">{{ c.max_streams or '—' }}</td>
+        <td style="font-size:13px;color:var(--text-muted);">{{ c.next_billing or '—' }}</td>
+        <td style="font-size:12px;color:var(--text-muted);">{{ c.checked_at.strftime('%d/%m %H:%M') if c.checked_at else '—' }}</td>
+        <td>
+          <div class="flex flex-wrap gap-2">
+            <!-- Removed cookie_detail link -->
+            <form method="POST" action="{{ url_for('admin.delete_cookie', cookie_id=c.id) }}" style="display:inline;" onsubmit="return confirm('Delete this cookie?')">
+              <button class="btn btn-danger btn-xs" title="Delete Cookie">🗑️</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:60px;">No cookies data available.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- PAGINATION -->
+{% if pagination.pages > 1 %}
+<div class="pagination">
+  {% if pagination.has_prev %}
+  <a href="{{ url_for('admin.results', page=pagination.prev_num, service=service_filter, plan=plan_filter, country=country_filter, search=search) }}" class="page-btn">←</a>
+  {% endif %}
+  {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+    {% if p %}<a href="{{ url_for('admin.results', page=p, service=service_filter, plan=plan_filter, country=country_filter, search=search) }}" class="page-btn {% if p==pagination.page %}active{% endif %}">{{ p }}</a>
+    {% else %}<span class="page-btn" style="opacity:0.4;cursor:default;">…</span>{% endif %}
+  {% endfor %}
+  {% if pagination.has_next %}
+  <a href="{{ url_for('admin.results', page=pagination.next_num, service=service_filter, plan=plan_filter, country=country_filter, search=search) }}" class="page-btn">→</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}
+{% block scripts %}
+<script>
+function openDedupModal() {
+  const overlay = document.getElementById('dedupOverlay');
+  overlay.style.display = 'flex';
+
+  // Reset state
+  document.getElementById('dedupLoading').style.display = 'block';
+  document.getElementById('dedupStats').style.display = 'none';
+  document.getElementById('dedupFooter').style.display = 'none';
+  document.getElementById('noDuplicates').style.display = 'none';
+  document.getElementById('dedupActionInfo').style.display = 'block';
+
+  // Fetch stats
+  fetch('{{ url_for("admin.api_duplicate_stats") }}')
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('dedupLoading').style.display = 'none';
+      document.getElementById('dedupStats').style.display = 'block';
+      document.getElementById('dedupFooter').style.display = 'flex';
+
+      document.getElementById('statTotal').textContent = (d.total ?? 0).toLocaleString();
+      document.getElementById('statDelete').textContent = (d.will_delete ?? 0).toLocaleString();
+      document.getElementById('statAfter').textContent = (d.after_clean ?? 0).toLocaleString();
+      document.getElementById('statDupText').textContent = d.dup_text ?? 0;
+      document.getElementById('descText').textContent = `${d.dup_text_groups ?? 0} duplicate groups found`;
+
+      if ((d.will_delete ?? 0) === 0) {
+        document.getElementById('noDuplicates').style.display = 'block';
+        document.getElementById('dedupActionInfo').style.display = 'none';
+        document.getElementById('btnConfirmDedup').disabled = true;
+        document.getElementById('btnConfirmDedup').style.opacity = '0.4';
+      }
+    })
+    .catch(e => {
+      document.getElementById('dedupLoading').innerHTML =
+        `<p style="color:#ef4444;padding:20px;text-align:center;">❌ Failed: ${e.message}</p>`;
+    });
+}
+
+function closeDedupModal() {
+  document.getElementById('dedupOverlay').style.display = 'none';
+}
+
+// Konfirmasi sebelum submit dedup
+document.getElementById('dedupForm')?.addEventListener('submit', function(e) {
+  const will = document.getElementById('statDelete').textContent;
+  if (!confirm(`Permanently delete ${will} duplicates? This action cannot be undone.`)) {
+    e.preventDefault();
+  }
+});
+
+// Close on overlay click
+document.getElementById('dedupOverlay')?.addEventListener('click', function(e) {
+  if (e.target === this) closeDedupModal();
+});
+
+// Recheck Modal logic
+function openRecheckModal() {
+  document.getElementById('recheckOverlay').style.display = 'flex';
+}
+function closeRecheckModal() {
+  document.getElementById('recheckOverlay').style.display = 'none';
+}
+document.getElementById('recheckOverlay')?.addEventListener('click', function(e) {
+  if (e.target === this) closeRecheckModal();
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+  const transferProxies = localStorage.getItem('transfer_proxies');
+  if (transferProxies) {
+    const el = document.getElementById('recheckProxies');
+    if (el) el.value = transferProxies;
+  }
+});
+</script>
+{% endblock %}

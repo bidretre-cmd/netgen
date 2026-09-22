@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ plan_meta.label }} — NF Manager{% endblock %}
+{% block content %}
+
+{% set show_flag = current_service in ['netflix'] %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ plan_meta.icon }} {{ plan_meta.label }}</h1>
+    <p class="page-subtitle">
+      {{ plan_meta.desc }}
+      &mdash;
+      {% if show_flag %}Select a country to generate a token{% else %}Select a region for access{% endif %}
+    </p>
+  </div>
+  <a href="{{ url_for('user.dashboard', service=current_service) }}" class="btn btn-secondary btn-sm">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    Back
+  </a>
+</div>
+
+{% if countries %}
+<div class="section-label">
+  {% if show_flag %}Available Countries{% else %}Available Regions{% endif %}
+</div>
+<div class="grid-auto">
+  {% for c in countries %}
+  <a href="{{ url_for('user.country_view', country_code=c.code, plan=plan_key, service=current_service) }}"
+     class="country-card">
+    {% if show_flag %}
+      <div class="flag">{{ c.flag }}</div>
+      <div class="code">{{ c.name }}</div>
+    {% else %}
+      <div style="font-size:26px;margin-bottom:8px;opacity:0.55;">🌐</div>
+      <div class="code">{{ c.name }}</div>
+    {% endif %}
+    <div class="count" style="color:var(--text-muted);font-weight:700;font-size:14px;"><span style="color:var(--text);">{{ c.count }}</span> Accounts</div>
+  </a>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="card" style="text-align:center;padding:70px 20px;">
+  <div style="font-size:52px;margin-bottom:16px;">📭</div>
+  <p style="color:var(--text-muted);font-size:15px;margin-bottom:16px;">
+    No accounts available for this plan.
+  </p>
+  <a href="{{ url_for('user.dashboard', service=current_service) }}" class="btn btn-primary">← Go Back</a>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — NF Manager{% endblock %}
+{% block content %}
+
+{# Layanan yang punya konteks negara (tampilkan flag) #}
+{% set show_flag = current_service in ['netflix'] %}
+
+<!-- Page header -->
+<div class="page-header" style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 24px; margin-bottom: 30px;">
+  <div>
+    <div class="badge badge-live" style="margin-bottom:14px; display:inline-flex; align-items:center; gap:6px;">
+      <span style="width:8px; height:8px; border-radius:50%; background:var(--red); box-shadow: 0 0 10px var(--red); animation: pulse-pal 2s infinite;"></span>
+      Live — Netflix Network
+    </div>
+    <h1 class="page-title" style="margin-bottom:12px; font-size:32px;">
+      Welcome, <span style="color:var(--red);">{{ current_user.username }}</span>
+    </h1>
+    <p style="color:var(--text-muted); font-size:15px; margin:0; max-width: 500px; line-height: 1.5;">
+      Select a region below to generate a secure Netflix session token. Your activity is monitored to ensure fair usage.
+    </p>
+  </div>
+  
+  <div style="display:flex; gap: 32px; text-align:right;">
+    <!-- User Limits -->
+    <div style="background: rgba(229, 9, 20, 0.05); border: 1px solid rgba(229, 9, 20, 0.2); border-radius: 12px; padding: 12px 20px; display:flex; flex-direction:column; justify-content:center;">
+      <div style="display:flex; justify-content:space-between; gap:20px;">
+        <span style="font-size:12px; color:var(--text-muted); font-weight:600; text-transform:uppercase;">Daily Limit</span>
+        <span style="font-size:14px; font-weight:800; color:var(--text);">{{ daily_claims_count }} <span style="color:var(--text-muted); font-weight:500;">/ {{ current_user.max_daily_claims }}</span></span>
+      </div>
+    </div>
+    
+    <!-- Total Accounts -->
+    <div style="display:flex; flex-direction:column; justify-content:center;">
+      <div style="font-size:38px; font-weight:900; color:var(--red); line-height:1; filter: drop-shadow(0 0 15px rgba(229,9,20,0.3));">{{ total }}</div>
+      <div style="color:var(--text-muted); font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-top:8px;">Total Accounts</div>
+    </div>
+  </div>
+</div>
+
+<!-- Country grid -->
+<div class="section-label" style="display:flex; align-items:center; gap:10px; margin-bottom: 24px;">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 5px rgba(229,9,20,0.5));"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+  <span style="font-size:18px; font-weight:700;">Filter by Country</span>
+</div>
+<div class="grid-auto">
+  {% for c in countries %}
+  <a href="{{ url_for('user.country_view', country_code=c.code, service=current_service) }}"
+     class="country-card">
+    <div class="flag" style="font-size:0; margin-bottom:12px;">
+      {% if c.code == 'XX' or c.code == 'UNKNOWN' %}
+        <span style="font-size:32px;">🌍</span>
+      {% else %}
+        <img src="https://flagcdn.com/w40/{{ c.code|lower }}.png" width="36" alt="{{ c.name }}" style="border-radius:4px; box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+      {% endif %}
+    </div>
+    <div class="code">{{ c.name }}</div>
+    <div class="count" style="color:var(--text-muted);font-weight:700;font-size:14px;"><span style="color:var(--text);">{{ c.count }}</span> Accounts</div>
+  </a>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">🌍</div>
+    <p>No country data available yet.</p>
+  </div>
+  {% endfor %}
+</div>
+
+{% endblock %}

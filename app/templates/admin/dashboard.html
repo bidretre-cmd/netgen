@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard — NF Manager{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="badge badge-live" style="margin-bottom:12px;">System Overview</div>
+    <h1 class="page-title">Admin Dashboard</h1>
+    <p class="page-subtitle">Cookie Management System Overview</p>
+  </div>
+  <a href="{{ url_for('admin.check') }}" class="btn btn-primary">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    Check New Cookies
+  </a>
+</div>
+
+<!-- Stat cards -->
+<div class="grid-4 mb-4">
+  <div class="stat-card">
+    <div class="number" style="color:var(--red);">{{ total }}</div>
+    <div class="label">Total Accounts</div>
+    <div class="icon-bg">🍪</div>
+  </div>
+  <div class="stat-card">
+    <div class="number" style="color:#00a8e1;">{{ total_users }}</div>
+    <div class="label">Total Users</div>
+    <div class="icon-bg">👥</div>
+  </div>
+  <div class="stat-card">
+    <div class="number" style="color:#f59e0b;">{{ pending_users }}</div>
+    <div class="label">Pending Approval</div>
+    <div class="icon-bg">⏳</div>
+  </div>
+  <div class="stat-card">
+    <div class="number" style="color:#22c55e;">{{ country_stats|length }}</div>
+    <div class="label">Available Countries</div>
+    <div class="icon-bg">🌍</div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <!-- Plan breakdown -->
+  <div class="card">
+    <div class="card-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Breakdown per Plan
+    </div>
+    {% set plan_colors = {'premium':'#e50914','standard_with_ads':'#f59e0b','standard':'#3b82f6','basic':'#22c55e','mobile':'#a855f7','free':'#6b7280','extra_member_premium':'#f97316'} %}
+    {% set plan_icons = {'premium':'👑','standard_with_ads':'📺','standard':'⭐','basic':'📱','mobile':'📲','free':'🆓','extra_member_premium':'➕'} %}
+    {% for row in plan_stats %}
+    <div style="margin-bottom:14px;">
+      <div class="flex-between mb-1">
+        <span style="font-size:13px;font-weight:600;color:var(--text);">
+          {{ plan_icons.get(row.plan_key,'📦') }} {{ row.plan_name or row.plan_key }}
+        </span>
+        <span style="font-size:13px;font-weight:800;color:{{ plan_colors.get(row.plan_key,'#e50914') }};">{{ row.count }}</span>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-bar" style="width:{{ [row.count * 100 // [total,1]|max, 100]|min }}%;background:{{ plan_colors.get(row.plan_key,'var(--red)') }};"></div>
+      </div>
+    </div>
+    {% else %}
+    <p class="text-muted" style="font-size:13px;">No accounts data available.</p>
+    {% endfor %}
+  </div>
+
+  <!-- Top countries -->
+  <div class="card">
+    <div class="card-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      Top Countries
+    </div>
+    {% set flags = {'US':'🇺🇸','ID':'🇮🇩','JP':'🇯🇵','KR':'🇰🇷','GB':'🇬🇧','DE':'🇩🇪','FR':'🇫🇷','BR':'🇧🇷','IN':'🇮🇳','AU':'🇦🇺','CA':'🇨🇦','SG':'🇸🇬','MY':'🇲🇾','TH':'🇹🇭','PH':'🇵🇭'} %}
+    {% for row in country_stats %}
+    <div class="flex-between" style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px;">
+      <span>
+        {{ flags.get(row.country,'🌍') }}
+        <strong style="margin-left:8px;color:var(--text);">{{ row.country }}</strong>
+      </span>
+      <span class="badge badge-premium">{{ row.count }}</span>
+    </div>
+    {% else %}
+    <p class="text-muted" style="font-size:13px;">No data available.</p>
+    {% endfor %}
+  </div>
+</div>
+
+{% if pending_users > 0 %}
+<div class="alert alert-warning mt-3">
+  ⚠️ There are <strong>{{ pending_users }}</strong> users pending approval.
+  <a href="{{ url_for('admin.users') }}" style="color:var(--warning);font-weight:700;text-decoration:none;margin-left:8px;">Manage now →</a>
+</div>
+{% endif %}
+
+{% endblock %}

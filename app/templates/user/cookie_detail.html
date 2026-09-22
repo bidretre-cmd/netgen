@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+{% block title %}Detail #{{ cookie.id }} — NF Manager{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ flag }} {{ country_name }} — {{ plan_meta.icon }} {{ plan_meta.label }}</h1>
+    <p class="page-subtitle">
+      Account Details #{{ cookie.id }}
+      &mdash;
+      <span style="text-transform:uppercase;font-weight:700;color:var(--red);">{{ cookie.service_type }}</span>
+    </p>
+  </div>
+  <a href="javascript:history.back()" class="btn btn-secondary btn-sm">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    Back
+  </a>
+</div>
+
+<div class="grid-2">
+  <!-- Account info -->
+  <div class="card">
+    <div class="card-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Account Information
+    </div>
+    {% macro row(key, val) %}
+    <div class="info-row">
+      <span class="info-key">{{ key }}</span>
+      <span class="info-val">{{ val if val else '—' }}</span>
+    </div>
+    {% endmacro %}
+    {{ row('Service', cookie.service_type|upper) }}
+    {{ row('Plan', cookie.plan_name) }}
+    {{ row('Country', flag + ' ' + cookie.country) }}
+    {% if cookie.service_type == 'netflix' %}
+    {{ row('Quality', cookie.quality) }}
+    {{ row('Max Screens', cookie.max_streams) }}
+    {{ row('Price', cookie.plan_price) }}
+    {% endif %}
+    {{ row('Next Billing', cookie.next_billing) }}
+    {{ row('Member Since', cookie.member_since) }}
+    {{ row('Payment Method', cookie.payment_method) }}
+    {{ row('Extra Member', cookie.extra_members) }}
+    {{ row('Hold Status', cookie.hold_status) }}
+    {{ row('Membership Status', cookie.membership_status) }}
+    {% if cookie.profiles %}
+    {{ row('Profile', cookie.profiles) }}
+    {% endif %}
+  </div>
+
+  <!-- Access section -->
+  <div>
+    {% if cookie.service_type != 'netflix' %}
+    <!-- Non-Netflix: raw cookies -->
+    <div class="card mb-3">
+      <div class="card-title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+        Raw Cookies ({{ cookie.service_type|upper }})
+      </div>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
+        Use the <strong style="color:var(--text);">Cookie-Editor</strong> extension or our Console Script to log in.
+      </p>
+
+      <!-- Countdown box -->
+      <div id="cookieLoadingBox" style="text-align:center;padding:28px 16px;">
+        <div style="font-size:44px;margin-bottom:10px;">🔐</div>
+        <p style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">Fetching Secure Cookies...</p>
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:18px;">Please wait while we retrieve your session data</p>
+        <div class="progress-wrap" style="margin-bottom:14px;">
+          <div id="cookieProgressBar" class="progress-bar" style="width:0%;background:linear-gradient(90deg,var(--red),#ff6b6b);"></div>
+        </div>
+        <p style="font-size:34px;font-weight:900;color:var(--red);letter-spacing:-1px;" id="cookieCountdown">15</p>
+        <p style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;">seconds remaining</p>
+        <button id="btnShowCookies" class="btn btn-primary btn-full mt-3" onclick="startCookieCountdown()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          View Cookies
+        </button>
+      </div>
+
+      <!-- Revealed after countdown -->
+      <div id="cookieContent" style="display:none;">
+        <textarea class="form-control font-mono" rows="8" readonly id="rawCookies" style="font-size:11px;background:rgba(0,0,0,0.4);">{{ cookie.cookie_text }}</textarea>
+        <button onclick="copyRawCookies()" class="btn btn-primary btn-full mt-2">
+          📋 Copy Raw Cookies
+        </button>
+      </div>
+    </div>
+
+    <!-- Login methods -->
+    <div class="card">
+      <div class="card-title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Login Methods
+      </div>
+      <div style="font-size:13px;color:var(--text-muted);line-height:1.8;">
+        {% if cookie.service_type != 'netflix' %}
+        <div style="background:var(--red-dim);border-left:3px solid var(--red);padding:14px;border-radius:var(--radius-sm);margin-bottom:18px;">
+          <p style="color:var(--text);font-weight:700;margin-bottom:3px;">⚡ Method 1: Console Quick Login (No Extension)</p>
+          <p style="font-size:12px;margin-bottom:12px;">Best for PC. No need to install anything.</p>
+          <button onclick="copyConsoleScript('{{ cookie.service_type }}')" class="btn btn-primary btn-full" style="font-weight:800;font-size:14px;">
+            📋 Copy Console Script
+          </button>
+          <p style="font-size:11px;margin-top:10px;line-height:1.5;">
+            Then: Go to
+            <strong style="color:#fff;">
+              netflix.com
+            → Press <strong>F12</strong> → <strong>Console</strong> → <strong>Paste &amp; Enter</strong>
+          </p>
+        </div>
+        {% endif %}
+
+        <p style="color:var(--text);font-weight:700;margin-bottom:8px;">🛠️ Method 2: Cookie-Editor Extension</p>
+        <ol style="padding-left:18px;">
+          <li>Install the <strong>Cookie-Editor</strong> extension.</li>
+          <li>Go to
+            <strong style="color:#fff;">
+              netflix.com
+          </li>
+          <li>Click extension → <strong>🗑️ Delete All</strong>.</li>
+          <li>Click <strong>⬇️ Import</strong> → Paste <em>Raw Cookies</em>.</li>
+          <li>Click <strong>Import</strong> and Refresh page. 🎉</li>
+        </ol>
+      </div>
+    </div>
+
+    {% else %}
+    <!-- Netflix: NFToken -->
+    <div class="card">
+      <div class="card-title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+        Generate NFToken
+      </div>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:18px;">
+        Click the button below to generate a login token. Tokens are generated in real-time and are not saved.
+      </p>
+
+      <!-- Initial button -->
+      <div id="tokenInitBox">
+        <button id="btnGetToken" class="btn btn-primary btn-full btn-lg" onclick="startTokenCountdown({{ cookie.id }})">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          Generate Token Now
+        </button>
+      </div>
+
+      <!-- Loading countdown -->
+      <div id="tokenLoadingBox" style="display:none;text-align:center;padding:28px 16px;">
+        <div style="font-size:44px;margin-bottom:10px;animation:spin-slow 3s linear infinite;display:inline-block;">🔐</div>
+        <p style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">Generating Secure Token...</p>
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:18px;">Authenticating with Netflix servers</p>
+        <div class="progress-wrap" style="margin-bottom:14px;">
+          <div id="tokenProgressBar" class="progress-bar" style="width:0%;background:linear-gradient(90deg,#E50914,#ff6b6b);"></div>
+        </div>
+        <p style="font-size:34px;font-weight:900;color:var(--red);letter-spacing:-1px;" id="tokenCountdown">15</p>
+        <p style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;">seconds remaining</p>
+      </div>
+
+      <!-- Token result -->
+      <div id="tokenResult" style="display:none;margin-top:18px;">
+        <div class="token-box">
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;font-weight:600;">
+            ⏱️ Expires: <span id="tokenExpiry" style="color:var(--warning);font-weight:800;"></span>
+          </div>
+          <a id="pcLink" href="#" target="_blank" class="token-link">
+            <span class="t-icon">🖥️</span>
+            <div>
+              <div class="t-label">PC / Desktop Login</div>
+              <div class="t-url" id="pcUrl"></div>
+            </div>
+            <span style="margin-left:auto;color:var(--red);">→</span>
+          </a>
+          <a id="mobileLink" href="#" target="_blank" class="token-link">
+            <span class="t-icon">📱</span>
+            <div>
+              <div class="t-label">Mobile Login</div>
+              <div class="t-url" id="mobileUrl"></div>
+            </div>
+            <span style="margin-left:auto;color:var(--red);">→</span>
+          </a>
+          <div class="flex gap-2 mt-3">
+            <button onclick="copyText(document.getElementById('pcUrl').textContent,'PC URL copied!')" class="copy-btn">📋 Copy PC URL</button>
+            <button onclick="copyText(document.getElementById('mobileUrl').textContent,'Mobile URL copied!')" class="copy-btn">📋 Copy Mobile</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="tokenError" style="display:none;margin-top:14px;" class="alert alert-danger"></div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+function getCsrf() {
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  return meta ? meta.content : '';
+}
+
+function startTokenCountdown(cookieId) {
+  document.getElementById('tokenInitBox').style.display = 'none';
+  document.getElementById('tokenLoadingBox').style.display = 'block';
+
+  const SECONDS = 15;
+  let remaining = SECONDS;
+  const countdown = document.getElementById('tokenCountdown');
+  const bar = document.getElementById('tokenProgressBar');
+
+  const fetchPromise = fetch(`/user/get-token/${cookieId}`, {
+    method: 'POST', headers: {'X-CSRFToken': getCsrf()}
+  }).then(r => r.json());
+
+  setTimeout(() => { bar.style.transition = `width ${SECONDS}s linear`; bar.style.width = '100%'; }, 50);
+
+  const timer = setInterval(() => {
+    remaining--;
+    countdown.textContent = remaining;
+    if (remaining <= 0) {
+      clearInterval(timer);
+      fetchPromise.then(data => {
+        document.getElementById('tokenLoadingBox').style.display = 'none';
+        if (data.success) {
+          document.getElementById('tokenExpiry').textContent = data.expires_at || 'Unknown';
+          document.getElementById('pcLink').href = data.pc_url;
+          document.getElementById('pcUrl').textContent = data.pc_url;
+          document.getElementById('mobileLink').href = data.mobile_url;
+          document.getElementById('mobileUrl').textContent = data.mobile_url;
+          document.getElementById('tokenResult').style.display = 'block';
+        } else {
+          document.getElementById('tokenError').textContent = '❌ ' + (data.error || 'Failed to generate token');
+          document.getElementById('tokenError').style.display = 'block';
+          document.getElementById('tokenInitBox').style.display = 'block';
+        }
+      }).catch(e => {
+        document.getElementById('tokenLoadingBox').style.display = 'none';
+        document.getElementById('tokenError').textContent = '❌ Network error: ' + e.message;
+        document.getElementById('tokenError').style.display = 'block';
+        document.getElementById('tokenInitBox').style.display = 'block';
+      });
+    }
+  }, 1000);
+}
+
+function startCookieCountdown() {
+  const btn = document.getElementById('btnShowCookies');
+  btn.disabled = true;
+  btn.innerHTML = '⌛ Waiting...';
+
+  const SECONDS = 15;
+  let remaining = SECONDS;
+  const countdown = document.getElementById('cookieCountdown');
+  const bar = document.getElementById('cookieProgressBar');
+  bar.style.transition = 'none'; bar.style.width = '0%';
+  setTimeout(() => { bar.style.transition = `width ${SECONDS}s linear`; bar.style.width = '100%'; }, 50);
+
+  const timer = setInterval(() => {
+    remaining--;
+    countdown.textContent = remaining;
+    if (remaining <= 0) {
+      clearInterval(timer);
+      document.getElementById('cookieLoadingBox').style.display = 'none';
+      document.getElementById('cookieContent').style.display = 'block';
+    }
+  }, 1000);
+}
+
+function copyRawCookies() {
+  const text = document.getElementById('rawCookies').value;
+  copyText(text, '✅ Cookies copied!');
+}
+
+function copyConsoleScript(service) {
+  const rawData = document.getElementById('rawCookies').value;
+  let cookies;
+  try {
+    cookies = JSON.parse(rawData);
+    if (!Array.isArray(cookies)) cookies = parseNetscape(rawData);
+  } catch(e) { cookies = parseNetscape(rawData); }
+
+  let script = 'const cookies = ' + JSON.stringify(cookies) + ';\n';
+  script += 'for (const item of cookies) {\n';
+  script += '  document.cookie = `${item.name}=${item.value}; domain=${item.domain}; path=/; expires=Tue, 19 Jan 2038 03:14:07 GMT; SameSite=Lax`;\n';
+  script += '}\nalert("Cookies injected! Refreshing...");\nlocation.reload();';
+
+  const sites = { netflix: 'netflix.com' };
+  const site = sites[service] || 'the website';
+  copyText(script, `✅ Script copied! Go to ${site}, press F12 > Console, paste & enter.`);
+}
+
+function parseNetscape(text) {
+  const cookies = [];
+  text.split('\n').forEach(line => {
+    if (!line.trim() || line.startsWith('#')) return;
+    const parts = line.split('\t');
+    if (parts.length >= 7) cookies.push({ domain: parts[0].trim(), name: parts[5].trim(), value: parts[6].trim() });
+  });
+  return cookies;
+}
+</script>
+<style>
+@keyframes spin-slow { to { transform: rotate(360deg); } }
+</style>
+{% endblock %}

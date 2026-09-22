@@ -1,0 +1,26 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Database files
+
+
+# Virtual Environments
+venv/
+env/
+ENV/
+.venv/
+
+# Environment Variables
+.env
+
+# MacOS/Windows hidden files
+.DS_Store
+Thumbs.db
+
+# Nuitka Build Artifacts
+*.build/
+*.dist/
+*.so
+*.bin

@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Checking… — NF Manager{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2 class="page-title">⏳ Checking Cookies...</h2>
+  <p class="page-subtitle">Process running in background, do not close this page</p>
+</div>
+
+<div class="card mb-3">
+  <div class="flex-between mb-2">
+    <span id="progressText" style="font-size:15px;font-weight:600;">Starting...</span>
+    <span id="progressPct" style="font-size:20px;font-weight:800;color:var(--red);">0%</span>
+  </div>
+  <div class="progress-wrap" style="height:10px;">
+    <div class="progress-bar" id="progressBar" style="width:0%;background:linear-gradient(90deg,var(--red),#ff6b6b);"></div>
+  </div>
+  <div class="flex flex-wrap" style="gap:16px;margin-top:16px;font-size:13px;align-items:center;">
+    <span>✅ Success: <strong id="cntSuccess" style="color:var(--success);">0</strong></span>
+    <span>❌ Failed: <strong id="cntFailed" style="color:var(--red);">0</strong></span>
+    <span>⚠️ Error: <strong id="cntError" style="color:var(--warning);">0</strong></span>
+    <span>📊 Total: <strong id="cntTotal" style="color:#60a5fa;">{{ total }}</strong></span>
+    <button onclick="stopChecking()" id="btnStop" class="btn btn-sm" style="margin-left:auto; background:var(--red); color:white; font-size:12px; border:none; border-radius:4px; cursor:pointer;">🛑 Stop</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">📋 Realtime Logs</div>
+  <div id="logContainer" style="max-height:400px;overflow-y:auto;font-size:13px;font-family:monospace;">
+  </div>
+</div>
+
+<div id="doneSection" style="display:none;" class="mt-3">
+  <div class="alert alert-success" style="font-size:15px;">
+    ✅ Checking complete! Cookies saved to database successfully.
+  </div>
+  
+  <!-- Success plans recap -->
+  <div id="recapSection" style="margin-top: 15px; margin-bottom: 20px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px;">
+    <div style="font-weight: 700; font-size: 14px; margin-bottom: 12px; color: var(--text); display: flex; align-items: center; gap: 8px;">
+      📊 Checking Recap (Success Categories)
+    </div>
+    <div id="recapList" style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+      <!-- Recap items will be inserted dynamically -->
+    </div>
+  </div>
+
+  <div class="flex flex-wrap gap-2">
+    <a href="{{ url_for('admin.results') }}" class="btn btn-primary" style="flex:1;min-width:140px;">🗄️ View Database</a>
+    <a href="{{ url_for('admin.check') }}" class="btn btn-secondary" style="flex:1;min-width:140px;">🔍 Check Again</a>
+    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary" style="flex:1;min-width:140px;">📊 Dashboard</a>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const evtSource = new EventSource("{{ url_for('admin.progress_stream') }}");
+const log = document.getElementById('logContainer');
+const bar = document.getElementById('progressBar');
+const pct = document.getElementById('progressPct');
+const txt = document.getElementById('progressText');
+
+evtSource.onmessage = function(e) {
+  const d = JSON.parse(e.data);
+  if (d.heartbeat) return;
+
+  document.getElementById('cntSuccess').textContent = d.success || 0;
+  document.getElementById('cntFailed').textContent = d.failed || 0;
+  document.getElementById('cntError').textContent = d.error || 0;
+
+  if (d.total > 0) {
+    const p = Math.round(d.done * 100 / d.total);
+    bar.style.width = p + '%';
+    pct.textContent = p + '%';
+    txt.textContent = `Processing ${d.done} / ${d.total} cookies...`;
+  }
+
+  if (d.current && d.current !== 'DONE') {
+    const icon = d.status === 'success' ? '✅' : d.status === 'free' ? '🆓' : d.status === 'failed' ? '❌' : '⚠️';
+    let statusColor = 'var(--text-muted)';
+    if (d.status === 'success') statusColor = '#4CAF50';
+    else if (d.status === 'free') statusColor = '#60a5fa';
+    else if (d.status === 'failed') statusColor = '#ff6b6b';
+    else if (d.status === 'error') statusColor = '#f5a623';
+
+    log.innerHTML += `<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;gap:8px;align-items:center;">` +
+      `${icon} <span style="color:var(--text);">${d.current}</span>` +
+      `<span style="color:${statusColor};margin-left:auto;font-weight:600;font-size:12px;">${d.status_detail || d.status}</span></div>`;
+    log.scrollTop = log.scrollHeight;
+  }
+
+  if (d.status === 'done' || d.current === 'DONE') {
+    evtSource.close();
+    document.getElementById('doneSection').style.display = 'block';
+    txt.textContent = 'Done!';
+    bar.style.width = '100%';
+    pct.textContent = '100%';
+    
+    // Populate recap
+    const recapList = document.getElementById('recapList');
+    recapList.innerHTML = '';
+    
+    if (d.plans_summary && Object.keys(d.plans_summary).length > 0) {
+      for (const [plan, count] of Object.entries(d.plans_summary)) {
+        let planColor = '#e50914';
+        let planIcon = '👑';
+        
+        const planLower = plan.toLowerCase();
+        if (planLower.includes('free')) {
+          planColor = '#60a5fa';
+          planIcon = '🆓';
+        } else if (planLower.includes('standard')) {
+          planColor = '#3b82f6';
+          planIcon = '⭐';
+        } else if (planLower.includes('basic')) {
+          planColor = '#22c55e';
+          planIcon = '📱';
+        } else if (planLower.includes('mobile')) {
+          planColor = '#8b5cf6';
+          planIcon = '📲';
+        } else if (planLower.includes('ads')) {
+          planColor = '#f5a623';
+          planIcon = '📺';
+        }
+        
+        recapList.innerHTML += `
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.02); border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.04);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span>${planIcon}</span>
+              <span style="font-weight: 600; color: var(--text);">${plan}</span>
+            </div>
+            <div style="background: ${planColor}15; border: 1px solid ${planColor}40; color: ${planColor}; font-weight: 800; font-size: 12px; padding: 2px 10px; border-radius: 20px;">
+              ${count} Accounts
+            </div>
+          </div>
+        `;
+      }
+    } else {
+      recapList.innerHTML = `<div style="color: var(--text-dim); font-style: italic;">No successful cookie categories found in this run.</div>`;
+    }
+  }
+};
+
+evtSource.onerror = function() {
+  evtSource.close();
+  document.getElementById('doneSection').style.display = 'block';
+  document.getElementById('btnStop').style.display = 'none';
+};
+
+function stopChecking() {
+  if (confirm("Are you sure you want to stop the checking process?")) {
+    document.getElementById('btnStop').textContent = "Stopping...";
+    document.getElementById('btnStop').disabled = true;
+    fetch("{{ url_for('admin.api_cancel') }}", { method: 'POST' })
+      .then(res => res.json())
+      .then(data => {
+        txt.textContent = 'Stopped by user';
+        document.getElementById('doneSection').style.display = 'block';
+        document.getElementById('btnStop').style.display = 'none';
+      });
+  }
+}
+</script>
+{% endblock %}
