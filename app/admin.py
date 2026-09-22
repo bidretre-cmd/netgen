@@ -929,57 +929,32 @@ def recheck_all():
 @login_required
 @admin_required
 def token_proxies():
-    import os, json
-    proxy_path = os.path.join(os.path.dirname(__file__), 'token_proxies.txt')
-    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+    from .models import AppConfig
 
     if request.method == 'POST':
-        # Save proxy list
+        # Save proxy list ke database
         new_proxies = request.form.get('proxies', '')
         try:
-            with open(proxy_path, 'w', encoding='utf-8') as f:
-                f.write(new_proxies)
+            AppConfig.set('token_proxies_text', new_proxies)
         except Exception as e:
+            db.session.rollback()
             flash(f'Error saving proxies: {e}', 'danger')
             return redirect(url_for('admin.token_proxies'))
 
         # Save global proxy toggle
-        # Radio button selalu mengirim tepat satu nilai: '1' (aktif) atau '0' (nonaktif)
         use_token_proxy = (request.form.get('use_token_proxy', '1') == '1')
-        config = {}
-        if os.path.exists(config_path):
-            try:
-                with open(config_path, 'r') as f:
-                    config = json.load(f)
-            except Exception:
-                pass
-        config['use_token_proxy'] = use_token_proxy
         try:
-            with open(config_path, 'w') as f:
-                json.dump(config, f)
+            AppConfig.set('use_token_proxy', 'true' if use_token_proxy else 'false')
         except Exception as e:
+            db.session.rollback()
             flash(f'Error saving config: {e}', 'danger')
             return redirect(url_for('admin.token_proxies'))
 
         flash('Token proxy settings updated successfully.', 'success')
         return redirect(url_for('admin.token_proxies'))
 
-    proxies_text = ''
-    if os.path.exists(proxy_path):
-        try:
-            with open(proxy_path, 'r', encoding='utf-8') as f:
-                proxies_text = f.read()
-        except Exception:
-            pass
-
-    use_token_proxy = True  # default on
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, 'r') as f:
-                config = json.load(f)
-                use_token_proxy = config.get('use_token_proxy', True)
-        except Exception:
-            pass
+    proxies_text = AppConfig.get('token_proxies_text', '')
+    use_token_proxy = AppConfig.get_bool('use_token_proxy', True)
 
     return render_template('admin/token_proxies.html',
                            proxies_text=proxies_text,
@@ -991,9 +966,7 @@ def token_proxies():
 @login_required
 @admin_required
 def settings():
-    import os
-    import json
-    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+    from .models import AppConfig
     
     if request.method == 'POST':
         ads_percentage = request.form.get('ads_percentage', type=int)
@@ -1002,29 +975,16 @@ def settings():
         if ads_percentage is None or ads_percentage < 0 or ads_percentage > 100:
             flash('Invalid percentage. Must be between 0 and 100.', 'danger')
         else:
-            config = {}
-            if os.path.exists(config_path):
-                try:
-                    with open(config_path, 'r') as f:
-                        config = json.load(f)
-                except Exception:
-                    pass
-            config['ads_percentage'] = ads_percentage
-            config['prevent_duplicate_claims'] = prevent_duplicate_claims
-            with open(config_path, 'w') as f:
-                json.dump(config, f)
-            flash('Settings saved successfully.', 'success')
+            try:
+                AppConfig.set('ads_percentage', str(ads_percentage))
+                AppConfig.set('prevent_duplicate_claims', 'true' if prevent_duplicate_claims else 'false')
+                flash('Settings saved successfully.', 'success')
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Failed to save settings: {e}', 'danger')
             
-    current_pct = 0
-    prevent_duplicate_claims = True
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, 'r') as f:
-                config = json.load(f)
-                current_pct = int(config.get('ads_percentage', 0))
-                prevent_duplicate_claims = config.get('prevent_duplicate_claims', True)
-        except Exception:
-            pass
+    current_pct = AppConfig.get_int('ads_percentage', 0)
+    prevent_duplicate_claims = AppConfig.get_bool('prevent_duplicate_claims', True)
             
     return render_template(
         'admin/settings.html',

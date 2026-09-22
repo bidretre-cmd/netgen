@@ -109,3 +109,54 @@ class UserCookieClaim(db.Model):
     __table_args__ = (
         db.UniqueConstraint('user_id', 'cookie_id', name='uq_user_cookie_claim'),
     )
+
+
+class AppConfig(db.Model):
+    """
+    Menyimpan konfigurasi aplikasi di database.
+    Pengganti config.json dan token_proxies.txt yang tidak bisa ditulis di Vercel (read-only filesystem).
+    Menggunakan pola key-value sederhana.
+    """
+    __tablename__ = 'app_config'
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(100), unique=True, nullable=False, index=True)
+    value = db.Column(db.Text, default='')
+
+    @staticmethod
+    def get(key, default=None):
+        """Ambil nilai config dari database."""
+        row = AppConfig.query.filter_by(key=key).first()
+        if row is None:
+            return default
+        return row.value
+
+    @staticmethod
+    def get_bool(key, default=False):
+        """Ambil nilai config sebagai boolean."""
+        val = AppConfig.get(key)
+        if val is None:
+            return default
+        return val.lower() in ('true', '1', 'yes')
+
+    @staticmethod
+    def get_int(key, default=0):
+        """Ambil nilai config sebagai integer."""
+        val = AppConfig.get(key)
+        if val is None:
+            return default
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            return default
+
+    @staticmethod
+    def set(key, value):
+        """Simpan nilai config ke database."""
+        from . import db as _db
+        row = AppConfig.query.filter_by(key=key).first()
+        if row:
+            row.value = str(value)
+        else:
+            row = AppConfig(key=key, value=str(value))
+            _db.session.add(row)
+        _db.session.commit()

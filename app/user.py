@@ -272,17 +272,9 @@ def api_generate_token(country_code):
         base_query_verified = base_query_verified.filter(CookieResult.plan_key.notin_(['free', 'mobile']))
         base_query_all = base_query_all.filter(CookieResult.plan_key.notin_(['free', 'mobile']))
 
-    # ── Baca setting prevent_duplicate_claims dari config.json ────────
-    import os, json
-    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
-    prevent_duplicate_claims = True
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, 'r') as f:
-                _cfg = json.load(f)
-                prevent_duplicate_claims = _cfg.get('prevent_duplicate_claims', True)
-        except Exception:
-            pass
+    # ── Baca setting prevent_duplicate_claims dari database ────────
+    from .models import AppConfig
+    prevent_duplicate_claims = AppConfig.get_bool('prevent_duplicate_claims', True)
     # ──────────────────────────────────────────────────────────────────
 
     already_claimed_sq = sa_select(UserCookieClaim.cookie_id).where(
@@ -319,30 +311,21 @@ def api_generate_token(country_code):
     from .nftoken import generate_nftoken, ERROR_COOKIE_DEAD
     ads_pct = getattr(current_user, 'ads_percentage', 0)
 
-    # ── Baca config proxy sekali di luar loop ──────────────────────────
-    import os, json
+    # ── Baca config proxy dari database ──────────────────────────
+    from .models import AppConfig
     token_proxies = []
-    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
-    use_token_proxy = True
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, 'r') as f:
-                _cfg = json.load(f)
-                use_token_proxy = _cfg.get('use_token_proxy', True)
-        except Exception:
-            pass
+    use_token_proxy = AppConfig.get_bool('use_token_proxy', True)
 
     if use_token_proxy:
-        proxy_path = os.path.join(os.path.dirname(__file__), 'token_proxies.txt')
-        if os.path.exists(proxy_path):
+        proxies_text = AppConfig.get('token_proxies_text', '')
+        if proxies_text:
             try:
                 from .netflix_checker_main import _parse_proxy_line
-                with open(proxy_path, 'r', encoding='utf-8') as f:
-                    for line in f:
-                        if line.strip():
-                            parsed = _parse_proxy_line(line)
-                            if parsed:
-                                token_proxies.append(parsed)
+                for line in proxies_text.splitlines():
+                    if line.strip():
+                        parsed = _parse_proxy_line(line)
+                        if parsed:
+                            token_proxies.append(parsed)
             except Exception:
                 pass
     # ────────────────────────────────────────────────────────────────────
