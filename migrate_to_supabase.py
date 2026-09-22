@@ -19,6 +19,13 @@ import sqlite3
 import json
 from datetime import datetime
 
+# Windows encoding safety
+try:
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+except Exception:
+    pass
+
 # Pastikan DATABASE_URL di-set
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if not DATABASE_URL:
@@ -58,24 +65,44 @@ def parse_datetime(val):
     return None
 
 
+def sync_sequences():
+    """Reset PostgreSQL serial sequences to max(id) + 1."""
+    from sqlalchemy import text
+    tables = ['users', 'cookie_results', 'user_cookie_claims', 'app_config']
+    print("\n[SYNC] Synchronizing PostgreSQL primary key sequences...")
+    for table in tables:
+        try:
+            res = db.session.execute(text(f"SELECT pg_get_serial_sequence('{table}', 'id')")).fetchone()
+            seq = res[0] if res else None
+            if seq:
+                max_res = db.session.execute(text(f"SELECT coalesce(max(id), 0) FROM {table}")).fetchone()
+                max_id = max_res[0] if max_res else 0
+                db.session.execute(text(f"SELECT setval('{seq}', {max_id + 1}, false)"))
+                db.session.commit()
+                print(f"   [OK] Sequence for {table} set to {max_id + 1}")
+        except Exception as e:
+            db.session.rollback()
+            print(f"   [SKIP] Sequence sync for {table}: {e}")
+
+
 def migrate():
     conn = sqlite3.connect(SQLITE_PATH)
     conn.row_factory = sqlite3.Row
 
     with app.app_context():
-        # Buat semua tabel (sudah dipanggil di create_app, tapi pastikan)
+        # Buat semua tabel jika belum ada
         db.create_all()
 
         # ── 1. Migrasi Users ──────────────────────────────────────────
         print("\n[1/4] Migrating users...")
+        existing_users = set(r[0] for r in db.session.query(User.username).all())
         cursor = conn.execute("SELECT * FROM users")
         rows = cursor.fetchall()
         migrated_users = 0
         skipped_users = 0
 
         for row in rows:
-            existing = User.query.filter_by(username=row['username']).first()
-            if existing:
+            if row['username'] in existing_users:
                 skipped_users += 1
                 continue
 
@@ -105,17 +132,19 @@ def migrate():
                 pass
 
             db.session.add(user)
+            existing_users.add(row['username'])
             migrated_users += 1
 
         try:
             db.session.commit()
-            print(f"   ✅ {migrated_users} users migrated, {skipped_users} skipped (already exist)")
+            print(f"   [OK] {migrated_users} users migrated, {skipped_users} skipped (already exist)")
         except Exception as e:
             db.session.rollback()
-            print(f"   ❌ Error migrating users: {e}")
+            print(f"   [ERROR] migrating users: {e}")
 
         # ── 2. Migrasi Cookie Results ─────────────────────────────────
         print("\n[2/4] Migrating cookie_results...")
+        existing_cookies = set(r[0] for r in db.session.query(CookieResult.cookie_text).all())
         cursor = conn.execute("SELECT * FROM cookie_results")
         rows = cursor.fetchall()
         migrated_cookies = 0
@@ -123,9 +152,7 @@ def migrate():
         batch_size = 500
 
         for i, row in enumerate(rows):
-            # Skip jika cookie_text sudah ada
-            existing = CookieResult.query.filter_by(cookie_text=row['cookie_text']).first()
-            if existing:
+            if row['cookie_text'] in existing_cookies:
                 skipped_cookies += 1
                 continue
 
@@ -166,38 +193,36 @@ def migrate():
                 pass
 
             db.session.add(cookie)
+            existing_cookies.add(row['cookie_text'])
             migrated_cookies += 1
 
             # Commit per batch
             if migrated_cookies % batch_size == 0:
                 try:
                     db.session.commit()
-                    print(f"   ... {migrated_cookies} cookies committed")
+                    print(f"   ... {migrated_cookies} cookies committed ...")
                 except Exception as e:
                     db.session.rollback()
-                    print(f"   ❌ Batch error: {e}")
+                    print(f"   [ERROR] in batch commit: {e}")
 
         try:
             db.session.commit()
-            print(f"   ✅ {migrated_cookies} cookies migrated, {skipped_cookies} skipped")
+            print(f"   [OK] {migrated_cookies} cookies migrated, {skipped_cookies} skipped")
         except Exception as e:
             db.session.rollback()
-            print(f"   ❌ Error migrating cookies: {e}")
+            print(f"   [ERROR] migrating cookies: {e}")
 
         # ── 3. Migrasi User Cookie Claims ─────────────────────────────
         print("\n[3/4] Migrating user_cookie_claims...")
         try:
+            existing_claims = set((r[0], r[1]) for r in db.session.query(UserCookieClaim.user_id, UserCookieClaim.cookie_id).all())
             cursor = conn.execute("SELECT * FROM user_cookie_claims")
             rows = cursor.fetchall()
             migrated_claims = 0
             skipped_claims = 0
 
             for row in rows:
-                existing = UserCookieClaim.query.filter_by(
-                    user_id=row['user_id'],
-                    cookie_id=row['cookie_id']
-                ).first()
-                if existing:
+                if (row['user_id'], row['cookie_id']) in existing_claims:
                     skipped_claims += 1
                     continue
 
@@ -215,16 +240,17 @@ def migrate():
                     pass
 
                 db.session.add(claim)
+                existing_claims.add((row['user_id'], row['cookie_id']))
                 migrated_claims += 1
 
             try:
                 db.session.commit()
-                print(f"   ✅ {migrated_claims} claims migrated, {skipped_claims} skipped")
+                print(f"   [OK] {migrated_claims} claims migrated, {skipped_claims} skipped")
             except Exception as e:
                 db.session.rollback()
-                print(f"   ❌ Error migrating claims: {e}")
+                print(f"   [ERROR] migrating claims: {e}")
         except sqlite3.OperationalError:
-            print("   ⚠️  Table user_cookie_claims not found in SQLite, skipping")
+            print("   [INFO] Table user_cookie_claims not found in SQLite, skipping")
 
         # ── 4. Migrasi Config ─────────────────────────────────────────
         print("\n[4/4] Migrating config...")
@@ -234,8 +260,7 @@ def migrate():
                 with open(config_path, 'r') as f:
                     config = json.load(f)
                 for key, value in config.items():
-                    existing = AppConfig.query.filter_by(key=key).first()
-                    if existing:
+                    if AppConfig.query.filter_by(key=key).first():
                         continue
                     if isinstance(value, bool):
                         val_str = 'true' if value else 'false'
@@ -243,12 +268,12 @@ def migrate():
                         val_str = str(value)
                     db.session.add(AppConfig(key=key, value=val_str))
                 db.session.commit()
-                print(f"   ✅ Config migrated: {list(config.keys())}")
+                print(f"   [OK] Config migrated: {list(config.keys())}")
             except Exception as e:
                 db.session.rollback()
-                print(f"   ❌ Error migrating config: {e}")
+                print(f"   [ERROR] migrating config: {e}")
         else:
-            print("   ⚠️  config.json not found, skipping")
+            print("   [INFO] config.json not found, skipping")
 
         proxy_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'app', 'token_proxies.txt')
         if os.path.exists(proxy_path):
@@ -259,14 +284,17 @@ def migrate():
                         text = f.read()
                     db.session.add(AppConfig(key='token_proxies_text', value=text))
                     db.session.commit()
-                    print("   ✅ token_proxies.txt migrated")
+                    print("   [OK] token_proxies.txt migrated")
                 except Exception as e:
                     db.session.rollback()
-                    print(f"   ❌ Error migrating proxies: {e}")
+                    print(f"   [ERROR] migrating proxies: {e}")
             else:
-                print("   ⚠️  token_proxies_text already exists, skipping")
+                print("   [INFO] token_proxies_text already exists, skipping")
         else:
-            print("   ⚠️  token_proxies.txt not found, skipping")
+            print("   [INFO] token_proxies.txt not found, skipping")
+
+        # ── 5. Sinkronisasi PostgreSQL Primary Key Sequences ───────────
+        sync_sequences()
 
     conn.close()
 
@@ -284,15 +312,17 @@ def migrate():
 
 if __name__ == '__main__':
     print("=" * 60)
-    print("MIGRASI SQLite → Supabase PostgreSQL")
+    print("MIGRASI SQLite -> Supabase PostgreSQL")
     print("=" * 60)
     print(f"\nSQLite: {SQLITE_PATH}")
     print(f"Target: {DATABASE_URL[:50]}...")
     print("")
     
-    confirm = input("Lanjutkan migrasi? (y/n): ").strip().lower()
-    if confirm != 'y':
-        print("Dibatalkan.")
-        sys.exit(0)
+    auto_confirm = '--yes' in sys.argv or '-y' in sys.argv or os.environ.get('AUTO_CONFIRM') == '1'
+    if not auto_confirm:
+        confirm = input("Lanjutkan migrasi? (y/n): ").strip().lower()
+        if confirm != 'y':
+            print("Dibatalkan.")
+            sys.exit(0)
     
     migrate()

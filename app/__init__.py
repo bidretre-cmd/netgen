@@ -64,25 +64,20 @@ def create_app():
         # Import models agar terdaftar di SQLAlchemy metadata sebelum create_all
         from . import models
         
-        # Buat semua tabel (termasuk AppConfig baru)
-        db.create_all()
-
-        # Migrasi kolom untuk cookie_results
-        _safe_add_column('cookie_results', 'service_type', "VARCHAR(20) DEFAULT 'netflix'")
-        _safe_add_column('cookie_results', 'is_verified', "BOOLEAN DEFAULT TRUE")
-
-        # Migrasi kolom keamanan pengguna
-        _safe_add_column('users', 'max_daily_claims', "INTEGER DEFAULT 5")
-        _safe_add_column('users', 'total_claims_left', "INTEGER DEFAULT 20")
-        _safe_add_column('users', 'last_login_ip', "VARCHAR(45)")
-        _safe_add_column('users', 'last_login_ua', "VARCHAR(255)")
-        _safe_add_column('users', 'last_login_location', "VARCHAR(100)")
-        _safe_add_column('users', 'last_active_at', "TIMESTAMP")
-        _safe_add_column('users', 'session_token', "VARCHAR(100)")
-        _safe_add_column('users', 'ads_percentage', "INTEGER DEFAULT 0")
-
-        # Migrasi config.json → database (sekali saja)
-        _migrate_file_config_to_db()
+        # Hanya jalankan migrasi kolom dinamis pada SQLite lokal
+        if db.engine.dialect.name == 'sqlite':
+            db.create_all()
+            _safe_add_column('cookie_results', 'service_type', "VARCHAR(20) DEFAULT 'netflix'")
+            _safe_add_column('cookie_results', 'is_verified', "BOOLEAN DEFAULT TRUE")
+            _safe_add_column('users', 'max_daily_claims', "INTEGER DEFAULT 5")
+            _safe_add_column('users', 'total_claims_left', "INTEGER DEFAULT 20")
+            _safe_add_column('users', 'last_login_ip', "VARCHAR(45)")
+            _safe_add_column('users', 'last_login_ua', "VARCHAR(255)")
+            _safe_add_column('users', 'last_login_location', "VARCHAR(100)")
+            _safe_add_column('users', 'last_active_at', "TIMESTAMP")
+            _safe_add_column('users', 'session_token', "VARCHAR(100)")
+            _safe_add_column('users', 'ads_percentage', "INTEGER DEFAULT 0")
+            _migrate_file_config_to_db()
 
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'

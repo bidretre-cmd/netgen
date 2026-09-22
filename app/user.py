@@ -135,7 +135,7 @@ def dashboard():
     # Plan cards with counts — hanya cookie yang sudah terverifikasi
     plan_data = db.session.query(
         CookieResult.plan_key,
-        CookieResult.plan_name,
+        func.max(CookieResult.plan_name).label('plan_name'),
         func.count(CookieResult.id).label('count')
     ).filter(
         CookieResult.service_type == service,

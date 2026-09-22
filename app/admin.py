@@ -413,7 +413,7 @@ def dashboard():
     from sqlalchemy import func
     plan_stats = db.session.query(
         CookieResult.plan_key,
-        CookieResult.plan_name,
+        func.max(CookieResult.plan_name).label('plan_name'),
         func.count(CookieResult.id).label('count')
     ).group_by(CookieResult.plan_key).all()
 
