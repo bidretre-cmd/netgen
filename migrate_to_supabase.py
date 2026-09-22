@@ -26,15 +26,27 @@ try:
 except Exception:
     pass
 
-# Pastikan DATABASE_URL di-set
-DATABASE_URL = os.environ.get('DATABASE_URL')
+# Pastikan DATABASE_URL di-set dari berbagai sumber (kompatibel Supabase + Vercel)
+DATABASE_URL = (
+    os.environ.get('DATABASE_URL')
+    or os.environ.get('POSTGRES_URL_NON_POOLING')
+    or os.environ.get('POSTGRES_URL')
+    or os.environ.get('POSTGRES_PRISMA_URL')
+)
+if not DATABASE_URL:
+    host = os.environ.get('POSTGRES_HOST')
+    user = os.environ.get('POSTGRES_USER')
+    password = os.environ.get('POSTGRES_PASSWORD')
+    db_name = os.environ.get('POSTGRES_DATABASE')
+    if host and user and password and db_name:
+        DATABASE_URL = f'postgresql://{user}:{password}@{host}:5432/{db_name}?sslmode=require'
+
 if not DATABASE_URL:
     print("=" * 60)
     print("ERROR: DATABASE_URL belum di-set!")
     print("")
-    print("Contoh:")
-    print("  set DATABASE_URL=postgresql://postgres.xxx:password@aws-0-region.pooler.supabase.com:6543/postgres")
-    print("  python migrate_to_supabase.py")
+    print("Set salah satu dari: DATABASE_URL, POSTGRES_URL_NON_POOLING,")
+    print("POSTGRES_URL, POSTGRES_PRISMA_URL, atau POSTGRES_HOST + POSTGRES_USER")
     print("=" * 60)
     sys.exit(1)
 

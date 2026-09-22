@@ -35,20 +35,53 @@ def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'netflix-cookie-manager-secret-2024')
     
-    database_url = os.environ.get('DATABASE_URL')
+    # Cari database URL dari beberapa nama env var (kompatibel Supabase + Vercel)
+    database_url = (
+        os.environ.get('DATABASE_URL')
+        or os.environ.get('POSTGRES_URL_NON_POOLING')
+        or os.environ.get('POSTGRES_URL')
+        or os.environ.get('POSTGRES_PRISMA_URL')
+    )
+    if not database_url:
+        host = os.environ.get('POSTGRES_HOST')
+        user = os.environ.get('POSTGRES_USER')
+        password = os.environ.get('POSTGRES_PASSWORD')
+        db_name = os.environ.get('POSTGRES_DATABASE')
+        if host and user and password and db_name:
+            database_url = f'postgresql://{user}:{password}@{host}:5432/{db_name}?sslmode=require'
+    if not database_url and os.environ.get('SUPABASE_URL'):
+        host = os.environ.get('POSTGRES_HOST')
+        user = os.environ.get('POSTGRES_USER', 'postgres')
+        password = os.environ.get('POSTGRES_PASSWORD', '')
+        db_name = os.environ.get('POSTGRES_DATABASE', 'postgres')
+        if host:
+            database_url = f'postgresql://{user}:{password}@{host}:5432/{db_name}?sslmode=require'
     if database_url:
         import re
+        from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
         database_url = database_url.strip().strip('"').strip("'")
         # Bersihkan tanda kurung siku [password] jika pengguna menyertakannya dari template
         database_url = re.sub(r':\[(.*?)\]@', r':\1@', database_url)
         # SQLAlchemy 1.4+ membutuhkan prefix 'postgresql://' bukan 'postgres://'
         if database_url.startswith('postgres://'):
             database_url = database_url.replace('postgres://', 'postgresql://', 1)
-        # Pastikan sslmode=require untuk PostgreSQL / Supabase
-        if 'sslmode=' not in database_url and 'sqlite' not in database_url:
-            sep = '&' if '?' in database_url else '?'
-            database_url = f"{database_url}{sep}sslmode=require"
-            
+        # Bersihkan query params yang tidak dikenali psycopg2/libpq (supa, pgbouncer, dll)
+        parsed = urlparse(database_url)
+        if parsed.query:
+            VALID_LIBPQ_PARAMS = {
+                'sslmode', 'connect_timeout', 'application_name', 'keepalives',
+                'keepalives_idle', 'keepalives_interval', 'keepalives_count',
+                'sslcert', 'sslkey', 'sslrootcert', 'target_session_attrs',
+                'options', 'client_encoding',
+            }
+            qs = parse_qs(parsed.query)
+            cleaned_qs = {k: v for k, v in qs.items() if k in VALID_LIBPQ_PARAMS}
+            if 'sslmode' not in cleaned_qs:
+                cleaned_qs['sslmode'] = ['require']
+            database_url = urlunparse(parsed._replace(query=urlencode(cleaned_qs, doseq=True)))
+        elif 'sqlite' not in database_url:
+            database_url += '?sslmode=require'
+
         app.config['SQLALCHEMY_DATABASE_URI'] = database_url
         # Connection pool settings untuk PostgreSQL / Supabase
         app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
@@ -62,6 +95,18 @@ def create_app():
         default_db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'cookies.db')
         app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{default_db_path}'
         
+    # Supabase config (ekspos untuk dipakai modul lain jika diperlukan)
+    app.config['SUPABASE_URL'] = os.environ.get('SUPABASE_URL', '')
+    app.config['SUPABASE_ANON_KEY'] = os.environ.get('NEXT_PUBLIC_SUPABASE_ANON_KEY', os.environ.get('SUPABASE_ANON_KEY', ''))
+    app.config['SUPABASE_PUBLISHABLE_KEY'] = os.environ.get('SUPABASE_PUBLISHABLE_KEY', '')
+    app.config['SUPABASE_SERVICE_ROLE_KEY'] = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
+    app.config['SUPABASE_SECRET_KEY'] = os.environ.get('SUPABASE_SECRET_KEY', '')
+    app.config['SUPABASE_JWT_SECRET'] = os.environ.get('SUPABASE_JWT_SECRET', '')
+    app.config['POSTGRES_HOST'] = os.environ.get('POSTGRES_HOST', '')
+    app.config['POSTGRES_USER'] = os.environ.get('POSTGRES_USER', '')
+    app.config['POSTGRES_PASSWORD'] = os.environ.get('POSTGRES_PASSWORD', '')
+    app.config['POSTGRES_DATABASE'] = os.environ.get('POSTGRES_DATABASE', '')
+    
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB upload limit
     app.config['MAX_FORM_PARTS'] = 10000       # Support 10000+ file parts
