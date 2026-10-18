@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% block title %}Manage Token Proxies{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h2 class="page-title">🔑 Token Proxy Settings</h2>
+  <p class="page-subtitle">Kelola proxy yang digunakan saat user melakukan Generate Token</p>
+</div>
+
+<form method="POST" action="{{ url_for('admin.token_proxies') }}" id="proxy-form">
+
+  <!-- ─── Global Toggle Card ─────────────────────────────────── -->
+  <div class="card mb-4" style="border:1px solid rgba(255,255,255,0.08);">
+    <div class="card-header" style="padding:20px 24px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+        <div>
+          <h3 class="card-title" style="margin:0;font-size:16px;">⚙️ Penggunaan Proxy (Global)</h3>
+          <p style="margin:6px 0 0;font-size:13px;color:var(--text-muted);">
+            Aktifkan atau nonaktifkan proxy untuk <strong>semua user</strong> saat melakukan Generate Token.
+          </p>
+        </div>
+
+        <!-- Toggle: gunakan hidden input + dua tombol biasa -->
+        {# Nilai dikirim lewat hidden input ini; tombol hanya mengubah nilainya via JS #}
+        <input type="hidden" id="proxy-value" name="use_token_proxy"
+               value="{{ '1' if use_token_proxy else '0' }}">
+
+        <div style="display:flex;gap:10px;">
+          <button type="button" id="btn-on"
+            onclick="setProxy(1)"
+            style="
+              padding:9px 22px;border-radius:20px;font-size:13px;font-weight:700;
+              cursor:pointer;border:2px solid;transition:all 0.2s;
+              {% if use_token_proxy %}
+                background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;
+                border-color:#22c55e;box-shadow:0 0 14px rgba(34,197,94,0.4);
+              {% else %}
+                background:rgba(255,255,255,0.04);color:var(--text-muted);
+                border-color:rgba(255,255,255,0.1);box-shadow:none;
+              {% endif %}
+            ">🟢 AKTIF</button>
+
+          <button type="button" id="btn-off"
+            onclick="setProxy(0)"
+            style="
+              padding:9px 22px;border-radius:20px;font-size:13px;font-weight:700;
+              cursor:pointer;border:2px solid;transition:all 0.2s;
+              {% if not use_token_proxy %}
+                background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;
+                border-color:#ef4444;box-shadow:0 0 14px rgba(239,68,68,0.4);
+              {% else %}
+                background:rgba(255,255,255,0.04);color:var(--text-muted);
+                border-color:rgba(255,255,255,0.1);box-shadow:none;
+              {% endif %}
+            ">🔴 NONAKTIF</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Proxy List Card ────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title" style="font-size:15px;margin:0;">📋 Daftar Proxy</h3>
+      <p style="margin:6px 0 0;font-size:13px;color:var(--text-muted);">
+        Satu proxy per baris. Format dari webshare.io: <code>ip:port:user:pass</code><br>
+        Proxy akan dipilih secara acak dan dirotasi setiap percobaan jika gagal.
+      </p>
+    </div>
+    <div class="card-body">
+      <div class="form-group mb-4">
+        <label class="form-label">Proxy List</label>
+        <textarea name="proxies" class="form-control" rows="15"
+          placeholder="Masukkan daftar proxy di sini&#10;Contoh:&#10;31.59.20.176:6754:tyzsllbz:8fl9wrmlwf77&#10;45.38.107.97:6014:tyzsllbz:8fl9wrmlwf77"
+          style="font-family:monospace;font-size:13px;">{{ proxies_text }}</textarea>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="padding:10px 28px;font-size:14px;">
+        💾 Simpan Pengaturan
+      </button>
+    </div>
+  </div>
+
+</form>
+
+<script>
+function setProxy(val) {
+  document.getElementById('proxy-value').value = val;
+
+  var btnOn  = document.getElementById('btn-on');
+  var btnOff = document.getElementById('btn-off');
+
+  if (val === 1) {
+    btnOn.style.background  = 'linear-gradient(135deg,#22c55e,#16a34a)';
+    btnOn.style.color       = '#fff';
+    btnOn.style.borderColor = '#22c55e';
+    btnOn.style.boxShadow   = '0 0 14px rgba(34,197,94,0.4)';
+
+    btnOff.style.background  = 'rgba(255,255,255,0.04)';
+    btnOff.style.color       = '#6b7280';
+    btnOff.style.borderColor = 'rgba(255,255,255,0.1)';
+    btnOff.style.boxShadow   = 'none';
+  } else {
+    btnOff.style.background  = 'linear-gradient(135deg,#ef4444,#dc2626)';
+    btnOff.style.color       = '#fff';
+    btnOff.style.borderColor = '#ef4444';
+    btnOff.style.boxShadow   = '0 0 14px rgba(239,68,68,0.4)';
+
+    btnOn.style.background  = 'rgba(255,255,255,0.04)';
+    btnOn.style.color       = '#6b7280';
+    btnOn.style.borderColor = 'rgba(255,255,255,0.1)';
+    btnOn.style.boxShadow   = 'none';
+  }
+}
+</script>
+{% endblock %}

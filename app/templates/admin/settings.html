@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Settings — NF Manager{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">⚙️ Settings</h1>
+    <p class="page-subtitle">Configure token generation & claim rules</p>
+  </div>
+</div>
+
+<div class="card" style="max-width: 650px;">
+  <form method="POST">
+
+    <!-- ─── Toggle Reuse / Duplicate Claims ────────────────────── -->
+    <div class="form-group mb-4" style="padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+      <label class="form-label" style="font-weight: 800; font-size: 16px;">🛡️ Pencegahan Klaim Cookie Berulang (Per-User)</label>
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5;">
+        Jika <strong>AKTIF</strong>, user tidak dapat mengklaim cookie yang <em>sama</em> lebih dari 1x.<br>
+        Jika <strong>NONAKTIF</strong>, user diperbolehkan mengklaim ulang cookie yang sama jika stok terbatas.
+      </p>
+
+      <input type="hidden" id="prevent-dup-value" name="prevent_duplicate_claims"
+             value="{{ '1' if prevent_duplicate_claims else '0' }}">
+
+      <div style="display:flex; gap:12px;">
+        <button type="button" id="btn-dup-on"
+          onclick="setPreventDup(1)"
+          style="
+            padding:9px 24px; border-radius:20px; font-size:13px; font-weight:700;
+            cursor:pointer; border:2px solid; transition:all 0.2s;
+            {% if prevent_duplicate_claims %}
+              background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff;
+              border-color:#22c55e; box-shadow:0 0 14px rgba(34,197,94,0.4);
+            {% else %}
+              background:rgba(255,255,255,0.04); color:var(--text-muted);
+              border-color:rgba(255,255,255,0.1); box-shadow:none;
+            {% endif %}
+          ">🔒 AKTIF (Cegah Duplikat)</button>
+
+        <button type="button" id="btn-dup-off"
+          onclick="setPreventDup(0)"
+          style="
+            padding:9px 24px; border-radius:20px; font-size:13px; font-weight:700;
+            cursor:pointer; border:2px solid; transition:all 0.2s;
+            {% if not prevent_duplicate_claims %}
+              background:linear-gradient(135deg,#ef4444,#dc2626); color:#fff;
+              border-color:#ef4444; box-shadow:0 0 14px rgba(239,68,68,0.4);
+            {% else %}
+              background:rgba(255,255,255,0.04); color:var(--text-muted);
+              border-color:rgba(255,255,255,0.1); box-shadow:none;
+            {% endif %}
+          ">🔓 NONAKTIF (Izinkan Klaim Ulang)</button>
+      </div>
+    </div>
+
+    <!-- ─── Ads Distribution Slider ───────────────────────────── -->
+    <div class="form-group mb-4">
+      <label class="form-label" style="font-weight: 800; font-size: 16px;">Standard with Ads Distribution</label>
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
+        Set the probability (0-100%) that a user will receive a <strong>Standard with Ads</strong> account when they generate a token.
+      </p>
+      
+      <div style="display: flex; align-items: center; gap: 15px;">
+        <input type="range" name="ads_percentage" id="ads_slider" min="0" max="100" value="{{ ads_percentage }}" style="flex: 1;" oninput="document.getElementById('ads_val').textContent = this.value + '%'">
+        <div style="background: rgba(255,255,255,0.05); padding: 8px 16px; border-radius: 8px; font-weight: 900; font-size: 18px; color: var(--red); width: 80px; text-align: center;" id="ads_val">{{ ads_percentage }}%</div>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary" style="margin-top: 20px; padding:10px 28px;">💾 Save Settings</button>
+  </form>
+</div>
+
+<script>
+function setPreventDup(val) {
+  document.getElementById('prevent-dup-value').value = val;
+
+  var btnOn  = document.getElementById('btn-dup-on');
+  var btnOff = document.getElementById('btn-dup-off');
+
+  if (val === 1) {
+    btnOn.style.background  = 'linear-gradient(135deg,#22c55e,#16a34a)';
+    btnOn.style.color       = '#fff';
+    btnOn.style.borderColor = '#22c55e';
+    btnOn.style.boxShadow   = '0 0 14px rgba(34,197,94,0.4)';
+
+    btnOff.style.background  = 'rgba(255,255,255,0.04)';
+    btnOff.style.color       = '#6b7280';
+    btnOff.style.borderColor = 'rgba(255,255,255,0.1)';
+    btnOff.style.boxShadow   = 'none';
+  } else {
+    btnOff.style.background  = 'linear-gradient(135deg,#ef4444,#dc2626)';
+    btnOff.style.color       = '#fff';
+    btnOff.style.borderColor = '#ef4444';
+    btnOff.style.boxShadow   = '0 0 14px rgba(239,68,68,0.4)';
+
+    btnOn.style.background  = 'rgba(255,255,255,0.04)';
+    btnOn.style.color       = '#6b7280';
+    btnOn.style.borderColor = 'rgba(255,255,255,0.1)';
+    btnOn.style.boxShadow   = 'none';
+  }
+}
+</script>
+{% endblock %}

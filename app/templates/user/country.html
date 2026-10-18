@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Generate Token — {{ flag }} {{ country_name }} — NF Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title" style="display:flex; align-items:center; gap:12px;">
+      {% if country_code == 'XX' or country_code == 'UNKNOWN' %}
+        <span style="font-size:32px;">🌍</span>
+      {% else %}
+        <img src="https://flagcdn.com/w40/{{ country_code|lower }}.png" width="40" alt="{{ country_name }}" style="border-radius:4px; box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+      {% endif %}
+      {{ country_name }}
+    </h1>
+    <p class="page-subtitle">Select your device type to generate a Netflix token.</p>
+  </div>
+  <a href="{{ url_for('user.dashboard') }}" class="btn btn-secondary btn-sm">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    Back
+  </a>
+</div>
+
+<div class="card" style="max-width: 600px; margin: 40px auto; padding: 40px 20px;">
+  <!-- STEP 1: Device Selection -->
+  <div id="stepSelection" style="text-align: center;">
+    <div style="display:flex; justify-content:center; gap:16px; margin-bottom:16px; color:var(--red);">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 8px rgba(229,9,20,0.5));"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 8px rgba(229,9,20,0.5));"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+    </div>
+    <h2 style="font-size:26px;font-weight:900;margin-bottom:8px;">Choose Your Device</h2>
+    <p style="font-size:15px;color:var(--text-muted);margin-bottom:36px;">Select the device you are going to use to watch Netflix.</p>
+    
+    <div class="grid-2" style="gap: 20px;">
+      <button class="btn btn-primary btn-lg device-btn" style="height: 140px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 14px; transition: transform 0.2s, box-shadow 0.2s;" onclick="generateToken('mobile')">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        <span style="font-weight:700; font-size:16px; letter-spacing:0.5px;">Mobile Phone</span>
+      </button>
+      
+      <button class="btn btn-secondary btn-lg device-btn" style="height: 140px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 14px; transition: transform 0.2s, box-shadow 0.2s;" onclick="generateToken('desktop')">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        <span style="font-weight:700; font-size:16px; letter-spacing:0.5px;">Desktop / PC</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 2: Loading State -->
+  <style>
+    @keyframes spin-img { 100% { transform: rotate(360deg); } }
+    .rotating-img { animation: spin-img 4s linear infinite; display: block; margin: 0 auto 24px; filter: drop-shadow(0 0 10px rgba(229,9,20,0.5)); }
+  </style>
+  <div id="stepLoading" style="display:none; text-align: center; padding: 30px 20px;">
+    <img src="{{ url_for('static', filename='img/loading.png') }}" class="rotating-img" width="300" height="300" alt="Loading...">
+    <h2 style="font-size:36px;font-weight:900;margin-bottom:12px;color:var(--text);">Hang on a sec, damn it...</h2>
+  </div>
+
+  <!-- STEP 3: Result -->
+  <div id="stepResult" style="display:none; text-align: center; padding: 20px;">
+    <img src="{{ url_for('static', filename='img/success.gif') }}" width="280" height="280" style="margin: 0 auto 24px; display: block; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(40,167,69,0.3); border: 1px solid rgba(255,255,255,0.1); object-fit: cover;" alt="Success">
+    
+    <a id="loginLink" href="#" target="_blank" rel="noopener" class="btn btn-primary btn-lg" style="width: 100%; justify-content: center; font-size: 18px; padding: 16px;">
+      Click Here to Login
+    </a>
+
+    <button class="btn btn-secondary mt-3" style="width: 100%; justify-content: center;" onclick="resetUI()">Generate Another Token</button>
+  </div>
+
+  <!-- Error State -->
+  <div id="stepError" style="display:none; text-align: center; padding: 20px;">
+    <img src="{{ url_for('static', filename='img/failed.gif') }}" width="280" height="280" style="margin: 0 auto 24px; display: block; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(229,9,20,0.3); border: 1px solid rgba(255,255,255,0.1); object-fit: cover;" alt="Failed">
+    <h2 style="font-size:26px;font-weight:900;margin-bottom:8px;color:var(--red);">A fucking failure. regenerate</h2>
+    <p id="errorMsg" style="font-size:14px;color:var(--text-muted);margin-bottom:30px;"></p>
+    
+    <button class="btn btn-secondary" style="width: 100%; justify-content: center;" onclick="resetUI()">Try Again</button>
+  </div>
+</div>
+
+<style>
+@keyframes spin-slow { to { transform: rotate(360deg); } }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const countryCode = "{{ country_code }}";
+
+function getCsrf() {
+  const m = document.querySelector('meta[name="csrf-token"]');
+  return m ? m.content : '';
+}
+
+function resetUI() {
+  document.getElementById('stepSelection').style.display = 'block';
+  document.getElementById('stepLoading').style.display = 'none';
+  document.getElementById('stepResult').style.display = 'none';
+  document.getElementById('stepError').style.display = 'none';
+}
+
+function generateToken(device) {
+  document.getElementById('stepSelection').style.display = 'none';
+  document.getElementById('stepLoading').style.display = 'block';
+  
+  // Record the start time so we can calculate how long the request took
+  const startTime = Date.now();
+  
+  fetch(`/user/api/generate/${countryCode}?device=${device}`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': getCsrf(), 'Content-Type': 'application/json' }
+  })
+  .then(res => res.json())
+  .then(data => {
+    // Calculate how much time has passed
+    const elapsed = Date.now() - startTime;
+    const minWaitTime = 10000; // Strictly 10 seconds
+    const remainingTime = Math.max(0, minWaitTime - elapsed);
+    
+    // Wait for the remainder of the 10 seconds before showing the result
+    setTimeout(() => {
+      document.getElementById('stepLoading').style.display = 'none';
+      if (data.success) {
+        document.getElementById('loginLink').href = device === 'mobile' ? data.mobile_url : data.pc_url;
+        document.getElementById('stepResult').style.display = 'block';
+      } else {
+        document.getElementById('errorMsg').textContent = data.error || 'Unknown error occurred.';
+        document.getElementById('stepError').style.display = 'block';
+      }
+    }, remainingTime);
+  })
+  .catch(err => {
+    document.getElementById('stepLoading').style.display = 'none';
+    document.getElementById('errorMsg').textContent = 'Network or server error occurred.';
+    document.getElementById('stepError').style.display = 'block';
+  });
+}
+</script>
+{% endblock %}

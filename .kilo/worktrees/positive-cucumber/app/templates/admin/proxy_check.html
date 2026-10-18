@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}Proxy Checker — NF Manager{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2 class="page-title">🛡️ Proxy Checker</h2>
+  <p class="page-subtitle">Check your proxies against Netflix/Custom URLs before using them</p>
+</div>
+
+<div class="grid-2">
+  <div>
+    <div class="card">
+      <div class="card-title">Proxy Settings</div>
+      <form id="proxyForm" onsubmit="startChecking(event)">
+        <div class="form-group">
+          <label class="form-label">Proxy List</label>
+          <textarea id="proxies" class="form-control" rows="8" placeholder="Format: host:port, user:pass@host:port, http://..., socks5://..." required></textarea>
+          <small class="text-muted" style="font-size:12px;display:block;margin-top:8px;">Paste your proxies here. Automatically removes duplicates.</small>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="grid-2" style="gap:20px;">
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Test URL</label>
+            <input type="text" id="test_url" class="form-control" value="https://httpbin.org/ip">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Threads</label>
+            <input type="number" id="threads" class="form-control" value="50" min="1" max="200">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Timeout (s)</label>
+            <input type="number" id="timeout" class="form-control" value="10" min="1">
+          </div>
+        </div>
+
+        <div class="form-group mt-3">
+          <label class="form-label">Schemes (if not provided in proxy)</label>
+          <div style="display:flex; gap:15px; margin-top:8px;">
+            <label><input type="checkbox" id="chk_http" checked> HTTP</label>
+            <label><input type="checkbox" id="chk_https" checked> HTTPS</label>
+            <label><input type="checkbox" id="chk_socks4"> SOCKS4</label>
+            <label><input type="checkbox" id="chk_socks5"> SOCKS5</label>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+          <button type="submit" id="startBtn" class="btn btn-primary" style="flex:1; justify-content:center;">🚀 Start Checking</button>
+          <button type="button" id="cancelBtn" class="btn btn-secondary" style="display:none; justify-content:center;" onclick="cancelChecking()">🛑 Cancel</button>
+          <button type="button" id="transferBtn" class="btn btn-success" style="display:none; justify-content:center;" onclick="transferProxiesToChecker()">➡️ Use Live Proxies</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div>
+    <div class="card" style="height: 100%; display: flex; flex-direction: column;">
+      <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>Live Results</span>
+        <div style="font-size:12px; font-weight:normal; display:flex; gap:15px;">
+          <span style="color:var(--text-muted);">Total: <strong id="res_total">0</strong></span>
+          <span style="color:#117a37;">Live: <strong id="res_live">0</strong></span>
+          <span style="color:var(--red);">Dead: <strong id="res_dead">0</strong></span>
+        </div>
+      </div>
+      
+      <div style="background: rgba(0,0,0,0.2); border-radius: 8px; flex: 1; padding: 12px; overflow-y: auto; max-height: 500px; font-family: monospace; font-size: 12px;" id="logOutput">
+        <!-- Logs will appear here -->
+        <div style="color: var(--text-muted); font-style: italic;">Ready to check...</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let evtSource = null;
+let liveProxies = [];
+
+function appendLog(msg, isLive) {
+  const logDiv = document.getElementById('logOutput');
+  // Remove placeholder if present
+  if (logDiv.innerHTML.includes("Ready to check")) logDiv.innerHTML = "";
+  
+  const div = document.createElement('div');
+  div.style.marginBottom = '6px';
+  div.style.padding = '4px 0';
+  div.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+  
+  if (isLive) {
+    div.innerHTML = `<span style="color:#117a37;font-weight:bold;">[LIVE]</span> ${msg}`;
+  } else {
+    div.innerHTML = `<span style="color:var(--red);font-weight:bold;">[DEAD]</span> ${msg}`;
+  }
+  
+  logDiv.appendChild(div);
+  logDiv.scrollTop = logDiv.scrollHeight;
+}
+
+function startChecking(e) {
+  e.preventDefault();
+  
+  const payload = {
+    proxies: document.getElementById('proxies').value,
+    test_url: document.getElementById('test_url').value,
+    threads: document.getElementById('threads').value,
+    timeout: document.getElementById('timeout').value,
+    http: document.getElementById('chk_http').checked,
+    https: document.getElementById('chk_https').checked,
+    socks4: document.getElementById('chk_socks4').checked,
+    socks5: document.getElementById('chk_socks5').checked
+  };
+
+  document.getElementById('startBtn').style.display = 'none';
+  document.getElementById('cancelBtn').style.display = 'flex';
+  document.getElementById('transferBtn').style.display = 'none';
+  document.getElementById('logOutput').innerHTML = '<div style="color: var(--text-muted); font-style: italic;">Initializing...</div>';
+  liveProxies = [];
+
+  fetch("{{ url_for('admin.proxy_check_start') }}", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  }).then(res => res.json()).then(data => {
+    if (!data.success) {
+      alert("Error: " + data.message);
+      resetUI();
+      return;
+    }
+    document.getElementById('res_total').textContent = data.total;
+    
+    // Start SSE stream
+    evtSource = new EventSource("{{ url_for('admin.proxy_check_stream') }}");
+    evtSource.onmessage = function(event) {
+      const d = JSON.parse(event.data);
+      if (d.ping) return;
+      
+      if (d.status === 'done') {
+        appendLog("✅ Finished checking all proxies.", true);
+        resetUI();
+        if (liveProxies.length > 0) {
+            document.getElementById('transferBtn').style.display = 'flex';
+        }
+        return;
+      }
+      
+      document.getElementById('res_live').textContent = d.live;
+      document.getElementById('res_dead').textContent = d.dead;
+      
+      if (d.status === 'LIVE') {
+        liveProxies.push(d.current);
+        appendLog(`${d.current} - IP: ${d.ip} (${d.latency}ms)`, true);
+      } else {
+        appendLog(`${d.current} - ${d.error}`, false);
+      }
+    };
+  }).catch(err => {
+    alert(err);
+    resetUI();
+  });
+}
+
+function cancelChecking() {
+  fetch("{{ url_for('admin.proxy_check_cancel') }}", { method: 'POST' })
+    .then(() => {
+      appendLog("🛑 Checking cancelled by user.", false);
+      resetUI();
+    });
+}
+
+function resetUI() {
+  document.getElementById('startBtn').style.display = 'flex';
+  document.getElementById('cancelBtn').style.display = 'none';
+  if (evtSource) {
+    evtSource.close();
+    evtSource = null;
+  }
+}
+
+function transferProxiesToChecker() {
+    if (liveProxies.length === 0) {
+        alert("No live proxies to transfer!");
+        return;
+    }
+    localStorage.setItem('transfer_proxies', liveProxies.join('\n'));
+    window.location.href = "{{ url_for('admin.check') }}";
+}
+</script>
+{% endblock %}

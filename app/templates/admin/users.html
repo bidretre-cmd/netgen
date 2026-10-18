@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Manage Users — NF Manager{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2 class="page-title">👥 Manage Users</h2>
+  <p class="page-subtitle">Approve or reject new user registrations</p>
+</div>
+
+{% set pending = users | selectattr('is_approved', 'equalto', false) | list %}
+{% set approved = users | selectattr('is_approved', 'equalto', true) | list %}
+
+{% if pending %}
+<div class="card mb-4">
+  <div class="card-title">⏳ Pending Approval ({{ pending|length }})</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Username</th><th>Email</th><th>Registered</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for u in pending %}
+        <tr>
+          <td><strong>{{ u.username }}</strong></td>
+          <td style="color:var(--text-muted);font-weight:500;">{{ u.email }}</td>
+          <td style="font-size:13px;color:var(--text-muted);">{{ u.created_at.strftime('%d/%m/%Y %H:%M') if u.created_at else '—' }}</td>
+          <td><span class="badge badge-warning">Pending</span></td>
+          <td>
+            <div class="flex flex-wrap gap-2">
+              <form method="POST" action="{{ url_for('admin.approve_user', user_id=u.id) }}">
+                <button class="btn btn-success btn-xs" title="Approve User">✅ Approve</button>
+              </form>
+              <form method="POST" action="{{ url_for('admin.reject_user', user_id=u.id) }}" onsubmit="return confirm('Reject and delete this user?')">
+                <button class="btn btn-danger btn-xs" title="Reject User">❌ Reject</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-title">✅ Active Users ({{ approved|length }})</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Email / IP Address</th>
+          <th>Last Active / Device</th>
+          <th>Claims Today / Limit</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in approved %}
+        <tr>
+          <td><strong>{{ u.username }}</strong></td>
+          <td>
+            <div style="font-weight:500;">{{ u.email }}</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">
+              🌐 IP: <span style="font-family:monospace;color:#fff;">{{ u.last_login_ip or '—' }}</span>
+            </div>
+            {% if u.last_login_location %}
+            <div style="font-size:11px;color:var(--warning, #ffc107);margin-top:2px;" title="IP Location">
+              📍 {{ u.last_login_location }}
+            </div>
+            {% endif %}
+          </td>
+          <td style="font-size:13px;">
+            <div style="font-weight:500;">
+              {{ u.last_active_at.strftime('%d/%m/%Y %H:%M') if u.last_active_at else '—' }}
+            </div>
+            {% if u.last_login_ua %}
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;" title="{{ u.last_login_ua }}">
+              📱 {{ u.parsed_ua }}
+            </div>
+            {% else %}
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">—</div>
+            {% endif %}
+          </td>
+          <td>
+            <div style="font-size:12px;margin-bottom:8px;">
+              📅 Today: 
+              <strong style="color:{% if claims_dict.get(u.id, 0) >= (u.max_daily_claims or 5) %}var(--red, #ff4a4a){% else %}var(--success, #4CAF50){% endif %};">
+                {{ claims_dict.get(u.id, 0) }} / {{ u.max_daily_claims or 5 }}
+              </strong>
+            </div>
+
+            
+            <form method="POST" action="{{ url_for('admin.update_user_limit', user_id=u.id) }}" style="display:flex;flex-direction:column;gap:6px;background:rgba(255,255,255,0.02);padding:8px;border-radius:4px;border:1px solid rgba(255,255,255,0.05);max-width:140px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;">
+                <span style="font-size:10px;color:var(--text-muted);">Limit:</span>
+                <input type="number" name="max_daily_claims" value="{{ u.max_daily_claims or 5 }}" min="0" style="width:48px;padding:2px;font-size:11px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:3px;text-align:center;">
+              </div>
+
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;">
+                <span style="font-size:10px;color:var(--text-muted);">Ads %:</span>
+                <input type="number" name="ads_percentage" value="{{ u.ads_percentage or 0 }}" min="0" max="100" style="width:48px;padding:2px;font-size:11px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:3px;text-align:center;">
+              </div>
+              <button class="btn btn-secondary btn-xs" style="padding:2px 4px;font-size:10px;width:100%;text-align:center;justify-content:center;border-radius:3px;margin-top:2px;">💾 Update</button>
+            </form>
+          </td>
+          <td><span class="badge badge-success">Active</span></td>
+          <td>
+            <form method="POST" action="{{ url_for('admin.reject_user', user_id=u.id) }}" onsubmit="return confirm('Delete this user?')">
+              <button class="btn btn-danger btn-xs" style="border-radius:4px;">🗑️ Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:40px;">No active users yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

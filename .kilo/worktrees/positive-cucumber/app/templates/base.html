@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}NF Manager — Free Premium Accounts{% endblock %}</title>
+<meta name="description" content="Access free streaming accounts instantly. Netflix, Prime Video, Spotify and more.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<!-- Background layers (GClix style) -->
+<div class="bg-grid"></div>
+<div class="bg-glow bg-glow-1"></div>
+<div class="bg-glow bg-glow-2"></div>
+
+<!-- FREE PALESTINE BANNER -->
+<div id="palestine-banner">
+  <div class="pal-shimmer"></div>
+  <span>
+    <img src="https://flagcdn.com/w20/ps.png" width="20" alt="Palestine Flag" style="border-radius:2px; animation:pulse-pal 1.5s infinite;">
+    &nbsp;Free Palestine&nbsp;
+    <img src="https://flagcdn.com/w20/ps.png" width="20" alt="Palestine Flag" style="border-radius:2px; animation:pulse-pal 1.5s infinite 0.75s;">
+  </span>
+</div>
+
+<!-- NAV -->
+<nav class="nav" id="mainNav">
+  <div class="nav-inner">
+    <!-- Logo -->
+    <a href="{{ url_for('user.dashboard') if current_user.is_authenticated else url_for('auth.login') }}" class="nav-logo">
+      <div class="nav-logo-icon">N</div>
+      <span>NF Manager</span>
+    </a>
+
+    <!-- Center links (desktop) -->
+    <div class="nav-links">
+      {% if current_user.is_authenticated %}
+        {% if current_user.is_admin %}
+          <a href="{{ url_for('admin.dashboard') }}" class="nav-link {% if request.endpoint == 'admin.dashboard' %}active{% endif %}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            Dashboard
+          </a>
+          <a href="{{ url_for('admin.check') }}" class="nav-link {% if request.endpoint in ['admin.check','admin.checking'] %}active{% endif %}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            Cookies
+          </a>
+          <a href="{{ url_for('admin.proxy_check') }}" class="nav-link {% if request.endpoint == 'admin.proxy_check' %}active{% endif %}">
+            <span style="font-size:14px; margin-right:4px;">🛡️</span> Proxy Check
+          </a>
+          <a href="{{ url_for('admin.results') }}" class="nav-link {% if request.endpoint == 'admin.results' %}active{% endif %}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+            Database
+          </a>
+          <a href="{{ url_for('admin.users') }}" class="nav-link {% if request.endpoint == 'admin.users' %}active{% endif %}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Users
+          </a>
+          <a href="{{ url_for('admin.token_proxies') }}" class="nav-link {% if request.endpoint == 'admin.token_proxies' %}active{% endif %}">
+            <span style="font-size:14px; margin-right:6px;">🔑</span> Tokens
+          </a>
+          <a href="{{ url_for('admin.settings') }}" class="nav-link {% if request.endpoint == 'admin.settings' %}active{% endif %}">
+            <span style="font-size:14px; margin-right:6px;">⚙️</span> Settings
+          </a>
+          <a href="{{ url_for('user.dashboard') }}" class="nav-link">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+            Client
+          </a>
+        {% else %}
+          <!-- No extra nav links for regular user -->
+        {% endif %}
+      {% endif %}
+    </div>
+
+    <!-- Right actions -->
+    <div class="nav-actions">
+      {% if current_user.is_authenticated %}
+      <div class="nav-user">
+        <div class="nav-avatar">{{ current_user.username[0]|upper }}</div>
+        <span class="nav-username">{{ current_user.username }}</span>
+        {% if current_user.is_admin %}
+        <span class="badge badge-admin" style="margin-left:2px;">Admin</span>
+        {% endif %}
+      </div>
+      <a href="{{ url_for('auth.logout') }}" class="btn btn-ghost btn-sm" title="Logout">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <span class="logout-text">Logout</span>
+      </a>
+      {% else %}
+      <a href="{{ url_for('auth.login') }}" class="btn btn-ghost btn-sm">Login</a>
+      <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-sm">Register</a>
+      {% endif %}
+
+      <!-- Mobile hamburger -->
+      <button class="nav-hamburger" id="navHamburger" aria-label="Menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- Mobile drawer -->
+<div class="mobile-drawer" id="mobileDrawer">
+  {% if current_user.is_authenticated %}
+    {% if current_user.is_admin %}
+      <a href="{{ url_for('admin.dashboard') }}" class="nav-link">📊 Dashboard</a>
+      <a href="{{ url_for('admin.check') }}" class="nav-link">🔍 Check Cookies</a>
+      <a href="{{ url_for('admin.results') }}" class="nav-link">🗄️ Database</a>
+      <a href="{{ url_for('admin.users') }}" class="nav-link">👥 Users</a>
+      <a href="{{ url_for('admin.token_proxies') }}" class="nav-link">🔑 Token Proxies</a>
+      <a href="{{ url_for('admin.settings') }}" class="nav-link">⚙️ Settings</a>
+      <a href="{{ url_for('user.dashboard') }}" class="nav-link">🏠 User View</a>
+    {% else %}
+      <a href="{{ url_for('user.dashboard', service='netflix') }}" class="nav-link">🔴 Netflix</a>
+    {% endif %}
+    <div style="height:1px;background:rgba(255,255,255,0.08);margin:8px 0;"></div>
+    <a href="{{ url_for('auth.logout') }}" class="nav-link" style="color:#f87171;">🚪 Logout</a>
+  {% else %}
+    <a href="{{ url_for('auth.login') }}" class="nav-link">Login</a>
+    <a href="{{ url_for('auth.register') }}" class="nav-link">Register</a>
+  {% endif %}
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="page-wrap">
+  <div class="container animate-in">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}" style="margin-bottom:20px;">{{ msg }}</div>
+    {% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

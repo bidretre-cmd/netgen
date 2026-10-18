@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Check Cookies — NF Manager{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2 class="page-title">🔍 Cookie Checker</h2>
+  <p class="page-subtitle">Choose the upload method that suits your file count</p>
+</div>
+
+<div class="grid-2">
+  <div>
+    <!-- MODE TABS -->
+    <div class="flex flex-wrap gap-2 mb-4">
+      <button onclick="setMode('files')" id="tab-files" class="btn btn-primary btn-sm" style="flex:1;min-width:110px;">📁 Multi-File</button>
+      <button onclick="setMode('zip')" id="tab-zip" class="btn btn-secondary btn-sm" style="flex:1;min-width:110px;">🗜️ Upload ZIP</button>
+      <button onclick="setMode('folder')" id="tab-folder" class="btn btn-secondary btn-sm" style="flex:1;min-width:110px;">📂 Folder Path</button>
+    </div>
+
+    <div class="card">
+      <form method="POST" enctype="multipart/form-data" id="checkForm">
+        <input type="hidden" name="upload_mode" id="upload_mode" value="files">
+
+        <!-- MODE 1: Multi-file upload -->
+        <div id="panel-files">
+          <div class="form-group">
+            <label class="form-label">Upload Cookie Files <span class="text-muted" style="font-weight:500;">(supports 1000+ files)</span></label>
+            <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+              <div class="upload-icon">📂</div>
+              <p><strong>Click or drag & drop</strong> cookie files here</p>
+              <p style="font-size:12px;margin-top:6px;color:var(--text-muted);">Format: .txt or .json — you can select multiple files at once (Ctrl+A)</p>
+              <div id="fileList" style="margin-top:16px;"></div>
+            </div>
+            <input type="file" id="fileInput" name="cookies" multiple accept=".txt,.json" style="display:none" onchange="updateFileList(this)">
+          </div>
+        </div>
+
+        <!-- MODE 2: ZIP upload -->
+        <div id="panel-zip" style="display:none;">
+          <div class="form-group">
+            <label class="form-label">Upload ZIP File</label>
+            <div class="upload-zone" onclick="document.getElementById('zipInput').click()">
+              <div class="upload-icon">🗜️</div>
+              <p><strong>Click to select</strong> a ZIP file</p>
+              <p style="font-size:12px;margin-top:6px;color:var(--text-muted);">Zip all your .txt/.json cookie files into 1 ZIP file</p>
+              <div id="zipName" style="margin-top:12px;font-size:14px;color:var(--red);font-weight:700;"></div>
+            </div>
+            <input type="file" id="zipInput" name="zip_file" accept=".zip" style="display:none"
+                   onchange="document.getElementById('zipName').textContent = this.files[0]?.name || ''">
+          </div>
+          <div class="alert alert-info">
+            💡 <strong>Guide:</strong> Select all 1041 cookie files → right click → <em>Send to → Compressed folder</em> → upload the ZIP here
+          </div>
+        </div>
+
+        <!-- MODE 3: Folder path server -->
+        <div id="panel-folder" style="display:none;">
+          <div class="form-group">
+            <label class="form-label">Folder Path on Server</label>
+            <input type="text" name="folder_path" class="form-control"
+                   placeholder="Example: D:\cookies or C:\Users\admin\cookies">
+            <small class="text-muted" style="font-size:12px;display:block;margin-top:8px;">
+              Enter the folder path containing .txt/.json cookie files on this computer (server).
+            </small>
+          </div>
+          <div class="alert alert-warning">
+            ⚠️ <strong>Fastest for large batches.</strong> Put all cookies in one folder and enter the path above.
+          </div>
+        </div>
+
+        <!-- COMMON SETTINGS -->
+        <div class="divider"></div>
+        <div class="grid-2" style="gap:20px;">
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Service</label>
+            <div style="display: flex; gap: 15px; margin-top: 12px; flex-wrap: wrap;">
+              <label style="cursor: pointer;font-weight:600;"><input type="radio" name="service_type" value="netflix" checked> 🔴 Netflix</label>
+            </div>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Threads Count <span class="text-muted" style="font-weight:500;">(1-30)</span></label>
+            <input type="number" name="threads" class="form-control" value="10" min="1" max="30">
+          </div>
+        </div>
+
+        <div class="form-group mt-3">
+          <label class="form-label">Proxy <span class="text-muted" style="color:var(--gray) !important; font-weight:400;">(Opsional)</span></label>
+          <textarea name="proxies" class="form-control" rows="3"
+                    placeholder="ip:port&#10;user:pass@ip:port&#10;socks5://ip:port"></textarea>
+          <small class="text-muted" style="font-size:12px;display:block;margin-top:8px;">Anda bisa memasukkan proxy (opsional)</small>
+        </div>
+
+        <button type="submit" class="btn btn-primary mt-3" style="width:100%;justify-content:center;padding:16px;font-size:16px;">
+          🚀 Start Checking
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- GUIDE -->
+  <div class="card">
+    <div class="card-title">📋 Upload Guide</div>
+    <div style="font-size:14px;line-height:1.8;color:var(--text-muted);">
+
+      <p><strong style="color:#fff;">🔥 For 1000+ Files (Recommended):</strong></p>
+      <div style="background:var(--red-dim);border:1px solid rgba(229,9,20,0.2);border-radius:var(--radius-sm);padding:16px;margin:12px 0 20px;">
+        <p style="color:var(--red);font-weight:700;margin-bottom:8px;">Folder Path Method (Fastest)</p>
+        <ol style="padding-left:20px;line-height:2;">
+          <li>Put all cookies in a folder, e.g. <code style="color:#f59e0b;background:rgba(245, 158, 11, 0.1);padding:2px 6px;border-radius:4px;">D:\cookies</code></li>
+          <li>Click the <strong style="color:#fff;">📂 Folder Path</strong> tab</li>
+          <li>Type the folder path</li>
+          <li>Click Start Checking</li>
+        </ol>
+      </div>
+
+      <p><strong style="color:#fff;">🗜️ ZIP Method:</strong></p>
+      <ol style="padding-left:20px;line-height:2;margin-bottom:20px;">
+        <li>Select all cookie files (Ctrl+A)</li>
+        <li>Right click → Compress / Send to ZIP</li>
+        <li>Upload the ZIP in the ZIP tab</li>
+      </ol>
+
+      <p><strong style="color:#fff;">Supported Cookie Formats:</strong></p>
+      <ul style="list-style:none;padding:0;margin-bottom:20px;">
+        <li style="margin-bottom:4px;">✅ Netscape / EditThisCookie format (.txt)</li>
+        <li style="margin-bottom:4px;">✅ JSON array format (.json)</li>
+        <li style="margin-bottom:4px;">✅ Raw key=value format</li>
+      </ul>
+
+      <p><strong style="color:#fff;">Grouping Results:</strong></p>
+      <ul style="list-style:none;padding:0;">
+        <li style="margin-bottom:4px;">👑 Premium Account · ⭐ Standard · 📺 Standard+Ads</li>
+        <li style="margin-bottom:4px;">📱 Basic · 📲 Mobile · 🆓 Free</li>
+        <li style="margin-bottom:4px;">+ Grouped by Country</li>
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+    // Auto-fill proxies from Proxy Checker if available
+    const transferProxies = localStorage.getItem('transfer_proxies');
+    if (transferProxies) {
+        document.querySelector('textarea[name="proxies"]').value = transferProxies;
+        localStorage.removeItem('transfer_proxies');
+    }
+});
+
+function setMode(mode) {
+  ['files','zip','folder'].forEach(m => {
+    document.getElementById('panel-'+m).style.display = m===mode ? 'block' : 'none';
+    const btn = document.getElementById('tab-'+m);
+    btn.className = m===mode ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+  });
+  document.getElementById('upload_mode').value = mode;
+}
+
+function updateFileList(input) {
+  const list = document.getElementById('fileList');
+  if (!input.files.length) { list.innerHTML=''; return; }
+  const n = input.files.length;
+  list.innerHTML = `<div style="color:var(--red);font-weight:700;font-size:14px;margin-bottom:8px;">✅ ${n} files selected</div>` +
+    Array.from(input.files).slice(0,4).map(f =>
+      `<div style="font-size:12px;color:var(--text-muted);margin-bottom:2px;">• ${f.name}</div>`
+    ).join('') +
+    (n>4 ? `<div style="font-size:12px;color:var(--text-muted);margin-top:4px;font-style:italic;">... and ${n-4} more files</div>` : '');
+}
+
+const zone = document.getElementById('uploadZone');
+if (zone) {
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('dragover');
+    const inp = document.getElementById('fileInput');
+    inp.files = e.dataTransfer.files;
+    updateFileList(inp);
+  });
+}
+</script>
+{% endblock %}
