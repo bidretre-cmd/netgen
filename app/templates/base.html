@@ -49,7 +49,7 @@
             Cookies
           </a>
           <a href="{{ url_for('admin.proxy_check') }}" class="nav-link {% if request.endpoint == 'admin.proxy_check' %}active{% endif %}">
-            <span style="font-size:14px; margin-right:4px;">🛡️</span> Proxy Check
+            <span style="font-size:14px; margin-right:4px;">🛡️</span> Proxy
           </a>
           <a href="{{ url_for('admin.results') }}" class="nav-link {% if request.endpoint == 'admin.results' %}active{% endif %}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
@@ -88,7 +88,7 @@
         <span class="badge badge-admin" style="margin-left:2px;">Admin</span>
         {% endif %}
       </div>
-      <a href="{{ url_for('auth.logout') }}" class="btn btn-ghost btn-sm" title="Logout">
+      <a href="{{ url_for('auth.logout') }}" class="btn btn-logout btn-sm" title="Logout">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         <span class="logout-text">Logout</span>
       </a>
@@ -121,7 +121,7 @@
       <a href="{{ url_for('user.dashboard', service='netflix') }}" class="nav-link">🔴 Netflix</a>
     {% endif %}
     <div style="height:1px;background:rgba(255,255,255,0.08);margin:8px 0;"></div>
-    <a href="{{ url_for('auth.logout') }}" class="nav-link" style="color:#f87171;">🚪 Logout</a>
+    <a href="{{ url_for('auth.logout') }}" class="nav-link" style="color:#f87171; font-weight:700; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); border-radius:8px; margin-top:6px;">🚪 Logout</a>
   {% else %}
     <a href="{{ url_for('auth.login') }}" class="nav-link">Login</a>
     <a href="{{ url_for('auth.register') }}" class="nav-link">Register</a>
