@@ -98,7 +98,7 @@ COUNTRY_DATA = {
 
 ALLOWED_COUNTRIES = {
     # Asia & Pasifik
-    'SG', 'MY', 'TH', 'PH', 'VN', 'KH', 'LA', 'MM', 'BN', 'JP', 'KR', 'TW', 'HK', 'MO', 'AU', 'NZ', 'FJ', 'PG', 'WS',
+    'SG', 'MY', 'TH', 'PH', 'VN', 'KH', 'LA', 'MM', 'BN', 'JP', 'KR', 'TW', 'HK', 'MO', 'AU', 'NZ', 'FJ', 'PG', 'WS','IN',
     # Timur Tengah
     'SA', 'AE', 'QA', 'KW', 'OM', 'BH', 'IL', 'JO', 'LB',
     # Amerika
