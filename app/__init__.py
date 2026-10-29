@@ -65,6 +65,25 @@ def create_app():
         # SQLAlchemy 1.4+ membutuhkan prefix 'postgresql://' bukan 'postgres://'
         if database_url.startswith('postgres://'):
             database_url = database_url.replace('postgres://', 'postgresql://', 1)
+
+        # Otomatis sesuaikan driver jika generic 'postgresql://' digunakan
+        if database_url.startswith('postgresql://'):
+            try:
+                import psycopg  # noqa: F401
+                has_psycopg = True
+            except ImportError:
+                has_psycopg = False
+
+            try:
+                import psycopg2  # noqa: F401
+                has_psycopg2 = True
+            except ImportError:
+                has_psycopg2 = False
+
+            if not has_psycopg and has_psycopg2:
+                database_url = database_url.replace('postgresql://', 'postgresql+psycopg2://', 1)
+            elif has_psycopg and not has_psycopg2:
+                database_url = database_url.replace('postgresql://', 'postgresql+psycopg://', 1)
         # Bersihkan query params yang tidak dikenali psycopg2/libpq (supa, pgbouncer, dll)
         parsed = urlparse(database_url)
         if parsed.query:

@@ -108,11 +108,7 @@ ALLOWED_COUNTRIES = {
     # Afrika
     'MA', 'DZ', 'TN', 'GH', 'SN', 'CI', 'UG', 'TZ', 'MG',
     # Indonesia (Home country)
-<<<<<<< HEAD
-    'ID', 'IN'
-=======
     'ID'
->>>>>>> 18ac1dd262015ce1efe7501e5711dde0645ee76b
 }
 
 
