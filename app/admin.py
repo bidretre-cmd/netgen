@@ -985,12 +985,122 @@ def settings():
             
     current_pct = AppConfig.get_int('ads_percentage', 0)
     prevent_duplicate_claims = AppConfig.get_bool('prevent_duplicate_claims', True)
+    from .user import get_allowed_countries
+    allowed_countries_count = len(get_allowed_countries())
             
     return render_template(
         'admin/settings.html',
         ads_percentage=current_pct,
-        prevent_duplicate_claims=prevent_duplicate_claims
+        prevent_duplicate_claims=prevent_duplicate_claims,
+        allowed_countries_count=allowed_countries_count
     )
+
+
+@admin_bp.route('/countries', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def countries():
+    from .models import AppConfig, CookieResult
+    from .user import (
+        DEFAULT_ALLOWED_COUNTRIES,
+        COUNTRY_DATA,
+        get_allowed_countries,
+        get_flag,
+        get_country_name,
+        get_country_region,
+    )
+    from sqlalchemy import func
+    import json
+
+    if request.method == 'POST':
+        action = request.form.get('action', 'save')
+
+        if action == 'reset':
+            try:
+                AppConfig.set('allowed_countries', json.dumps(sorted(list(DEFAULT_ALLOWED_COUNTRIES))))
+                flash('Daftar negara berhasil di-reset ke setelan default awal.', 'info')
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Gagal mereset negara: {e}', 'danger')
+            return redirect(url_for('admin.countries'))
+
+        elif action == 'save':
+            selected = request.form.getlist('countries')
+            cleaned = sorted(list(set(c.strip().upper() for c in selected if len(c.strip()) == 2)))
+            try:
+                AppConfig.set('allowed_countries', json.dumps(cleaned))
+                flash(f'Pengaturan negara berhasil disimpan! {len(cleaned)} negara aktif di dashboard user.', 'success')
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Gagal menyimpan negara: {e}', 'danger')
+            return redirect(url_for('admin.countries'))
+
+        elif action == 'add_custom':
+            new_code = request.form.get('new_code', '').strip().upper()
+            if not new_code or len(new_code) != 2 or not new_code.isalpha():
+                flash('Kode negara harus berupa 2 huruf alfabet (contoh: ID, US, JP).', 'warning')
+            else:
+                current_allowed = get_allowed_countries()
+                current_allowed.add(new_code)
+                try:
+                    AppConfig.set('allowed_countries', json.dumps(sorted(list(current_allowed))))
+                    flash(f'Negara "{new_code}" berhasil ditambahkan dan diaktifkan.', 'success')
+                except Exception as e:
+                    db.session.rollback()
+                    flash(f'Gagal menambahkan negara: {e}', 'danger')
+            return redirect(url_for('admin.countries'))
+
+    current_allowed = get_allowed_countries()
+
+    # Hitung stok cookie aktif & terverifikasi per negara di database
+    counts_query = db.session.query(
+        CookieResult.country,
+        db.func.count(CookieResult.id).label('count')
+    ).filter(
+        CookieResult.is_on_hold == False,
+        CookieResult.plan_key != 'free',
+        CookieResult.is_verified == True
+    ).group_by(CookieResult.country).all()
+
+    stock_dict = {r[0].upper(): r[1] for r in counts_query if r[0]}
+
+    # Kumpulkan semua kode negara yang diketahui
+    all_codes = set(COUNTRY_DATA.keys()) | set(DEFAULT_ALLOWED_COUNTRIES) | set(stock_dict.keys()) | set(current_allowed)
+    all_codes.discard('XX')
+    all_codes.discard('UNKNOWN')
+
+    country_list = []
+    for code in all_codes:
+        code_up = code.upper()
+        country_list.append({
+            'code': code_up,
+            'name': get_country_name(code_up),
+            'flag': get_flag(code_up),
+            'region': get_country_region(code_up),
+            'is_allowed': code_up in current_allowed,
+            'cookie_count': stock_dict.get(code_up, 0)
+        })
+
+    country_list.sort(key=lambda x: (-x['cookie_count'], x['name']))
+
+    total_active = len(current_allowed)
+    total_with_stock = len(stock_dict)
+    total_cookies_in_allowed = sum(stock_dict.get(c, 0) for c in current_allowed)
+
+    return render_template(
+        'admin/countries.html',
+        countries=country_list,
+        total_active=total_active,
+        total_with_stock=total_with_stock,
+        total_cookies_in_allowed=total_cookies_in_allowed
+    )
+
+
+@admin_bp.route('/settings/countries')
+@login_required
+@admin_required
+def settings_countries_redirect():
+    return redirect(url_for('admin.countries'))
 
 
 

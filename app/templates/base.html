@@ -62,7 +62,10 @@
           <a href="{{ url_for('admin.token_proxies') }}" class="nav-link {% if request.endpoint == 'admin.token_proxies' %}active{% endif %}">
             <span style="font-size:14px; margin-right:6px;">🔑</span> Tokens
           </a>
-          <a href="{{ url_for('admin.settings') }}" class="nav-link {% if request.endpoint == 'admin.settings' %}active{% endif %}">
+          <a href="{{ url_for('admin.countries') }}" class="nav-link {% if request.endpoint == 'admin.countries' %}active{% endif %}">
+            <span style="font-size:14px; margin-right:6px;">🌍</span> Countries
+          </a>
+          <a href="{{ url_for('admin.settings') }}" class="nav-link {% if request.endpoint in ['admin.settings', 'admin.settings_countries_redirect'] %}active{% endif %}">
             <span style="font-size:14px; margin-right:6px;">⚙️</span> Settings
           </a>
           <a href="{{ url_for('user.dashboard') }}" class="nav-link">
@@ -111,6 +114,7 @@
       <a href="{{ url_for('admin.results') }}" class="nav-link">🗄️ Database</a>
       <a href="{{ url_for('admin.users') }}" class="nav-link">👥 Users</a>
       <a href="{{ url_for('admin.token_proxies') }}" class="nav-link">🔑 Token Proxies</a>
+      <a href="{{ url_for('admin.countries') }}" class="nav-link">🌍 Countries</a>
       <a href="{{ url_for('admin.settings') }}" class="nav-link">⚙️ Settings</a>
       <a href="{{ url_for('user.dashboard') }}" class="nav-link">🏠 User View</a>
     {% else %}

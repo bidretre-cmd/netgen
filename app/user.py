@@ -45,6 +45,8 @@ COUNTRY_DATA = {
     'CR': ('🇨🇷', 'Costa Rica'), 'PA': ('🇵🇦', 'Panama'), 'JM': ('🇯🇲', 'Jamaica'),
     'TT': ('🇹🇹', 'Trinidad and Tobago'), 'CU': ('🇨🇺', 'Cuba'), 'HT': ('🇭🇹', 'Haiti'),
     'BB': ('🇧🇧', 'Barbados'), 'GY': ('🇬🇾', 'Guyana'), 'SR': ('🇸🇷', 'Suriname'),
+    'BS': ('🇧🇸', 'Bahamas'), 'LC': ('🇱🇨', 'Saint Lucia'), 'GP': ('🇬🇵', 'Guadeloupe'),
+    'MQ': ('🇲🇶', 'Martinique'),
     # Europe
     'GB': ('🇬🇧', 'United Kingdom'), 'DE': ('🇩🇪', 'Germany'), 'FR': ('🇫🇷', 'France'),
     'IT': ('🇮🇹', 'Italy'), 'ES': ('🇪🇸', 'Spain'), 'NL': ('🇳🇱', 'Netherlands'),
@@ -60,6 +62,7 @@ COUNTRY_DATA = {
     'MT': ('🇲🇹', 'Malta'), 'IS': ('🇮🇸', 'Iceland'), 'BY': ('🇧🇾', 'Belarus'),
     'MD': ('🇲🇩', 'Moldova'), 'BA': ('🇧🇦', 'Bosnia and Herzegovina'),
     'ME': ('🇲🇪', 'Montenegro'), 'XK': ('🇽🇰', 'Kosovo'), 'CY': ('🇨🇾', 'Cyprus'),
+    'JE': ('🇯🇪', 'Jersey'),
     # Asia and Pacific
     'CN': ('🇨🇳', 'China'), 'JP': ('🇯🇵', 'Japan'), 'KR': ('🇰🇷', 'South Korea'),
     'IN': ('🇮🇳', 'India'), 'ID': ('🇮🇩', 'Indonesia'), 'PH': ('🇵🇭', 'Philippines'),
@@ -70,7 +73,9 @@ COUNTRY_DATA = {
     'MM': ('🇲🇲', 'Myanmar'), 'KH': ('🇰🇭', 'Cambodia'), 'MN': ('🇲🇳', 'Mongolia'),
     'BN': ('🇧🇳', 'Brunei'), 'FJ': ('🇫🇯', 'Fiji'), 'PG': ('🇵🇬', 'Papua New Guinea'),
     'AF': ('🇦🇫', 'Afghanistan'), 'GE': ('🇬🇪', 'Georgia'), 'AM': ('🇦🇲', 'Armenia'),
-    'AZ': ('🇦🇿', 'Azerbaijan'), 'KZ': ('🇰🇿', 'Kazakhstan'), 'UZ': ('🇺🇿', 'Uzbekistan'),
+    'AZ': ('🇦🇿', 'Azerbaijan'), 'KZ': ('🇰🇿', 'Kazakhstan'), 'UZ': ('UZ', 'Uzbekistan'),
+    'BT': ('🇧🇹', 'Bhutan'), 'MV': ('🇲🇻', 'Maldives'), 'PF': ('🇵🇫', 'French Polynesia'),
+    'LA': ('🇱🇦', 'Laos'), 'WS': ('🇼🇸', 'Samoa'), 'MO': ('🇲🇴', 'Macau'),
     # Middle East
     'SA': ('🇸🇦', 'Saudi Arabia'), 'AE': ('🇦🇪', 'United Arab Emirates'), 'QA': ('🇶🇦', 'Qatar'),
     'KW': ('🇰🇼', 'Kuwait'), 'BH': ('🇧🇭', 'Bahrain'), 'OM': ('🇴🇲', 'Oman'),
@@ -90,15 +95,16 @@ COUNTRY_DATA = {
     'CD': ('🇨🇩', 'DR Congo'), 'SC': ('🇸🇨', 'Seychelles'), 'TD': ('🇹🇩', 'Chad'),
     'LY': ('🇱🇾', 'Libya'), 'MU': ('🇲🇺', 'Mauritius'), 'CV': ('🇨🇻', 'Cape Verde'),
     'YT': ('🇾🇹', 'Mayotte'), 'MW': ('🇲🇼', 'Malawi'), 'BI': ('🇧🇮', 'Burundi'),
-    'SO': ('🇸🇴', 'Somalia'),
+    'SO': ('🇸🇴', 'Somalia'), 'GQ': ('🇬🇶', 'Equatorial Guinea'), 'NE': ('🇳🇪', 'Niger'),
+    'RE': ('🇷🇪', 'Réunion'), 'SL': ('🇸🇱', 'Sierra Leone'),
     'XX': ('🌐', 'Global / Unknown'),
     'UNKNOWN': ('🌐', 'Global / Unknown'),
     'PS': ('🇵🇸', 'Palestine'),
 }
 
-ALLOWED_COUNTRIES = {
+DEFAULT_ALLOWED_COUNTRIES = {
     # Asia & Pasifik
-    'SG', 'MY', 'TH', 'PH', 'VN', 'KH', 'LA', 'MM', 'BN', 'JP', 'KR', 'TW', 'HK', 'MO', 'AU', 'NZ', 'FJ', 'PG', 'WS','IN',
+    'SG', 'MY', 'TH', 'PH', 'VN', 'KH', 'LA', 'MM', 'BN', 'JP', 'KR', 'TW', 'HK', 'MO', 'AU', 'NZ', 'FJ', 'PG', 'WS', 'IN',
     # Timur Tengah
     'SA', 'AE', 'QA', 'KW', 'OM', 'BH', 'IL', 'JO', 'LB',
     # Amerika
@@ -111,19 +117,101 @@ ALLOWED_COUNTRIES = {
     'ID'
 }
 
+# Alias untuk backwards compatibility
+ALLOWED_COUNTRIES = DEFAULT_ALLOWED_COUNTRIES
+
+COUNTRY_REGIONS = {
+    # Asia & Pasifik
+    'SG': 'Asia & Pasifik', 'MY': 'Asia & Pasifik', 'TH': 'Asia & Pasifik', 'PH': 'Asia & Pasifik',
+    'VN': 'Asia & Pasifik', 'KH': 'Asia & Pasifik', 'LA': 'Asia & Pasifik', 'MM': 'Asia & Pasifik',
+    'BN': 'Asia & Pasifik', 'JP': 'Asia & Pasifik', 'KR': 'Asia & Pasifik', 'TW': 'Asia & Pasifik',
+    'HK': 'Asia & Pasifik', 'MO': 'Asia & Pasifik', 'AU': 'Asia & Pasifik', 'NZ': 'Asia & Pasifik',
+    'FJ': 'Asia & Pasifik', 'PG': 'Asia & Pasifik', 'WS': 'Asia & Pasifik', 'IN': 'Asia & Pasifik',
+    'CN': 'Asia & Pasifik', 'PK': 'Asia & Pasifik', 'BD': 'Asia & Pasifik', 'LK': 'Asia & Pasifik',
+    'NP': 'Asia & Pasifik', 'MN': 'Asia & Pasifik', 'BT': 'Asia & Pasifik', 'MV': 'Asia & Pasifik',
+    'PF': 'Asia & Pasifik', 'AF': 'Asia & Pasifik', 'KZ': 'Asia & Pasifik', 'UZ': 'Asia & Pasifik',
+    'ID': 'Asia & Pasifik',
+    # Americas
+    'US': 'Amerika', 'CA': 'Amerika', 'MX': 'Amerika', 'BR': 'Amerika', 'AR': 'Amerika',
+    'CL': 'Amerika', 'CO': 'Amerika', 'PE': 'Amerika', 'VE': 'Amerika', 'EC': 'Amerika',
+    'BO': 'Amerika', 'PY': 'Amerika', 'UY': 'Amerika', 'DO': 'Amerika', 'GT': 'Amerika',
+    'HN': 'Amerika', 'SV': 'Amerika', 'NI': 'Amerika', 'CR': 'Amerika', 'PA': 'Amerika',
+    'JM': 'Amerika', 'TT': 'Amerika', 'CU': 'Amerika', 'HT': 'Amerika', 'BB': 'Amerika',
+    'GY': 'Amerika', 'SR': 'Amerika', 'LC': 'Amerika', 'GP': 'Amerika', 'MQ': 'Amerika',
+    'BS': 'Amerika',
+    # Europe
+    'GB': 'Eropa', 'DE': 'Eropa', 'FR': 'Eropa', 'IT': 'Eropa', 'ES': 'Eropa', 'NL': 'Eropa',
+    'BE': 'Eropa', 'SE': 'Eropa', 'NO': 'Eropa', 'DK': 'Eropa', 'FI': 'Eropa', 'PL': 'Eropa',
+    'PT': 'Eropa', 'GR': 'Eropa', 'AT': 'Eropa', 'CH': 'Eropa', 'IE': 'Eropa', 'CZ': 'Eropa',
+    'HU': 'Eropa', 'RO': 'Eropa', 'BG': 'Eropa', 'SK': 'Eropa', 'SI': 'Eropa', 'HR': 'Eropa',
+    'RS': 'Eropa', 'UA': 'Eropa', 'RU': 'Eropa', 'AL': 'Eropa', 'MK': 'Eropa', 'LT': 'Eropa',
+    'LV': 'Eropa', 'EE': 'Eropa', 'LU': 'Eropa', 'MT': 'Eropa', 'IS': 'Eropa', 'BY': 'Eropa',
+    'MD': 'Eropa', 'BA': 'Eropa', 'ME': 'Eropa', 'XK': 'Eropa', 'CY': 'Eropa', 'JE': 'Eropa',
+    # Middle East
+    'SA': 'Timur Tengah', 'AE': 'Timur Tengah', 'QA': 'Timur Tengah', 'KW': 'Timur Tengah',
+    'BH': 'Timur Tengah', 'OM': 'Timur Tengah', 'JO': 'Timur Tengah', 'LB': 'Timur Tengah',
+    'IQ': 'Timur Tengah', 'IR': 'Timur Tengah', 'IL': 'Timur Tengah', 'TR': 'Timur Tengah',
+    'SY': 'Timur Tengah', 'YE': 'Timur Tengah', 'PS': 'Timur Tengah', 'GE': 'Timur Tengah',
+    'AM': 'Timur Tengah', 'AZ': 'Timur Tengah',
+    # Africa
+    'ZA': 'Afrika', 'NG': 'Afrika', 'EG': 'Afrika', 'KE': 'Afrika', 'ET': 'Afrika', 'GH': 'Afrika',
+    'MA': 'Afrika', 'DZ': 'Afrika', 'TN': 'Afrika', 'CI': 'Afrika', 'TZ': 'Afrika', 'CM': 'Afrika',
+    'AO': 'Afrika', 'MZ': 'Afrika', 'ZM': 'Afrika', 'ZW': 'Afrika', 'SN': 'Afrika', 'TG': 'Afrika',
+    'BF': 'Afrika', 'ML': 'Afrika', 'MG': 'Afrika', 'BW': 'Afrika', 'NA': 'Afrika', 'RW': 'Afrika',
+    'UG': 'Afrika', 'SD': 'Afrika', 'GA': 'Afrika', 'CD': 'Afrika', 'SC': 'Afrika', 'TD': 'Afrika',
+    'LY': 'Afrika', 'MU': 'Afrika', 'CV': 'Afrika', 'YT': 'Afrika', 'MW': 'Afrika', 'BI': 'Afrika',
+    'SO': 'Afrika', 'GQ': 'Afrika', 'NE': 'Afrika', 'RE': 'Afrika', 'SL': 'Afrika',
+}
+
+
+def get_country_region(country_code):
+    """Mendapatkan region/benua dari kode negara."""
+    return COUNTRY_REGIONS.get((country_code or '').upper(), 'Lainnya')
+
+
+def get_allowed_countries():
+    """
+    Mengambil daftar negara yang diizinkan untuk dashboard user dari AppConfig.
+    Jika belum dikonfigurasi, gunakan DEFAULT_ALLOWED_COUNTRIES.
+    """
+    from .models import AppConfig
+    try:
+        raw_val = AppConfig.get('allowed_countries')
+        if raw_val is not None and str(raw_val).strip() != '':
+            import json
+            try:
+                data = json.loads(raw_val)
+                if isinstance(data, list):
+                    return set(str(c).strip().upper() for c in data if c and len(str(c).strip()) == 2)
+            except Exception:
+                return set(str(c).strip().upper() for c in str(raw_val).split(',') if c.strip() and len(str(c).strip()) == 2)
+    except Exception:
+        pass
+    return set(DEFAULT_ALLOWED_COUNTRIES)
+
 
 def get_flag(country_code):
     code = (country_code or 'XX').upper()
-    if code == 'UNKNOWN':
-        code = 'XX'
-    return COUNTRY_DATA.get(code, ('🌍', code))[0]
+    if code in ('XX', 'UNKNOWN', ''):
+        return '🌐'
+    if code in COUNTRY_DATA:
+        return COUNTRY_DATA[code][0]
+    # Fallback generate Unicode flag emoji dari 2-letter ISO code
+    if len(code) == 2 and code.isalpha():
+        try:
+            return ''.join(chr(0x1F1E6 + ord(c) - ord('A')) for c in code)
+        except Exception:
+            pass
+    return '🌍'
 
 
 def get_country_name(country_code):
     code = (country_code or 'XX').upper()
-    if code == 'UNKNOWN':
-        code = 'XX'
-    return COUNTRY_DATA.get(code, ('🌍', code))[1]
+    if code in ('XX', 'UNKNOWN', ''):
+        return 'Global / Unknown'
+    if code in COUNTRY_DATA:
+        return COUNTRY_DATA[code][1]
+    return code
 
 
 @user_bp.route('/')
@@ -158,33 +246,38 @@ def dashboard():
             'count': row.count,
         })
 
-    # Country summary — hanya cookie verified dan di negara yang diperbolehkan tanpa VPN
-    country_data = db.session.query(
-        CookieResult.country,
-        func.count(CookieResult.id).label('count')
-    ).filter(
-        CookieResult.service_type == service,
-        CookieResult.is_on_hold == False,
-        CookieResult.plan_key != 'free',
-        CookieResult.is_verified == True,
-        CookieResult.country.in_(list(ALLOWED_COUNTRIES))
-    ).group_by(CookieResult.country).order_by(
-        func.count(CookieResult.id).desc()
-    ).all()
+    allowed_countries = get_allowed_countries()
+
+    # Country summary — hanya cookie verified dan di negara yang diizinkan admin
+    if allowed_countries:
+        country_data = db.session.query(
+            CookieResult.country,
+            func.count(CookieResult.id).label('count')
+        ).filter(
+            CookieResult.service_type == service,
+            CookieResult.is_on_hold == False,
+            CookieResult.plan_key != 'free',
+            CookieResult.is_verified == True,
+            CookieResult.country.in_(list(allowed_countries))
+        ).group_by(CookieResult.country).order_by(
+            func.count(CookieResult.id).desc()
+        ).all()
+
+        total = CookieResult.query.filter(
+            CookieResult.service_type == service,
+            CookieResult.is_on_hold == False,
+            CookieResult.plan_key != 'free',
+            CookieResult.is_verified == True,
+            CookieResult.country.in_(list(allowed_countries))
+        ).count()
+    else:
+        country_data = []
+        total = 0
 
     countries = [
         {'code': r.country, 'flag': get_flag(r.country), 'name': get_country_name(r.country), 'count': r.count}
         for r in country_data
     ]
-
-    # Total hanya cookie verified dan di negara yang diperbolehkan tanpa VPN
-    total = CookieResult.query.filter(
-        CookieResult.service_type == service,
-        CookieResult.is_on_hold == False,
-        CookieResult.plan_key != 'free',
-        CookieResult.is_verified == True,
-        CookieResult.country.in_(list(ALLOWED_COUNTRIES))
-    ).count()
 
     from datetime import datetime, timedelta
     twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
@@ -205,8 +298,9 @@ def dashboard():
 def country_view(country_code):
     """Render the country view where user selects device."""
     service = request.args.get('service', 'netflix')
-    if country_code.upper() not in ALLOWED_COUNTRIES:
-        flash('Negara tidak didukung atau tidak dapat diakses tanpa VPN dari Indonesia.', 'danger')
+    allowed_countries = get_allowed_countries()
+    if country_code.upper() not in allowed_countries:
+        flash('Negara tidak didukung atau belum diaktifkan oleh admin.', 'danger')
         return redirect(url_for('user.dashboard', service=service))
     flag = get_flag(country_code)
     country_name = get_country_name(country_code)
@@ -228,8 +322,9 @@ from sqlalchemy import select as sa_select
 @user_approved_required
 def api_generate_token(country_code):
     """Generate NFToken on-demand based on device."""
-    if country_code.upper() not in ALLOWED_COUNTRIES:
-        return jsonify({'error': 'Negara tidak didukung atau tidak dapat diakses tanpa VPN dari Indonesia.'}), 400
+    allowed_countries = get_allowed_countries()
+    if country_code.upper() not in allowed_countries:
+        return jsonify({'error': 'Negara tidak didukung atau belum diaktifkan oleh admin.'}), 400
     device = request.args.get('device', 'desktop')
     service = 'netflix'
 

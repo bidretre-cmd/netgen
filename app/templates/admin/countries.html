@@ -1,0 +1,469 @@
+{% extends "base.html" %}
+{% block title %}Country Settings — NF Manager Admin{% endblock %}
+{% block content %}
+
+<!-- Header -->
+<div class="page-header" style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px; margin-bottom:24px;">
+  <div>
+    <div class="badge badge-admin" style="margin-bottom:10px; display:inline-flex; align-items:center; gap:6px;">
+      <span>🌍</span> Dashboard Display Config
+    </div>
+    <h1 class="page-title" style="margin-bottom:6px; font-size:28px;">Pengaturan Negara User</h1>
+    <p class="page-subtitle" style="margin:0; max-width:650px;">
+      Pilih negara mana saja yang akan ditampilkan dan dapat diklaim oleh pengguna di dashboard client. Negara yang dinonaktifkan tidak akan muncul pada dashboard user.
+    </p>
+  </div>
+
+  <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+    <form method="POST" onsubmit="return confirm('Kembalikan daftar negara ke pengaturan awal (default)?');" style="margin:0;">
+      <input type="hidden" name="action" value="reset">
+      <button type="submit" class="btn btn-ghost" style="border:1px solid rgba(255,255,255,0.12); padding:9px 18px; font-size:13px;" title="Reset ke daftar default bawaan code">
+        🔄 Reset ke Default
+      </button>
+    </form>
+    <button type="button" onclick="submitCountryForm()" class="btn btn-primary" style="padding:10px 24px; font-weight:700; box-shadow:0 0 16px var(--red-glow);">
+      💾 Simpan Perubahan (<span class="badge-active-count">{{ total_active }}</span>)
+    </button>
+  </div>
+</div>
+
+<!-- Stats Bar -->
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-bottom:24px;">
+  <div class="card" style="padding:16px 20px; display:flex; align-items:center; gap:16px; border-left:4px solid #22c55e;">
+    <div style="font-size:32px;">🟢</div>
+    <div>
+      <div style="font-size:24px; font-weight:900; color:#fff;" id="statActiveCount">{{ total_active }}</div>
+      <div style="font-size:12px; color:var(--text-muted); font-weight:600; text-transform:uppercase;">Negara Aktif di User</div>
+    </div>
+  </div>
+
+  <div class="card" style="padding:16px 20px; display:flex; align-items:center; gap:16px; border-left:4px solid var(--red);">
+    <div style="font-size:32px;">📦</div>
+    <div>
+      <div style="font-size:24px; font-weight:900; color:var(--red);">{{ total_with_stock }}</div>
+      <div style="font-size:12px; color:var(--text-muted); font-weight:600; text-transform:uppercase;">Negara Ada Stok di DB</div>
+    </div>
+  </div>
+
+  <div class="card" style="padding:16px 20px; display:flex; align-items:center; gap:16px; border-left:4px solid #3b82f6;">
+    <div style="font-size:32px;">👥</div>
+    <div>
+      <div style="font-size:24px; font-weight:900; color:#fff;">{{ total_cookies_in_allowed }}</div>
+      <div style="font-size:12px; color:var(--text-muted); font-weight:600; text-transform:uppercase;">Total Akun Siap Klaim</div>
+    </div>
+  </div>
+</div>
+
+<!-- Toolbar & Filters -->
+<div class="card" style="margin-bottom:24px; padding:20px;">
+  <div style="display:flex; flex-direction:column; gap:16px;">
+    <!-- Row 1: Search & Quick Batch Actions -->
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+      <div style="position:relative; flex:1; min-width:280px;">
+        <input type="text" id="countrySearch" placeholder="🔍 Cari negara atau kode (contoh: Indonesia, ID, US, Singapore)..."
+               oninput="applyFilters()"
+               style="width:100%; padding:10px 16px 10px 38px; border-radius:10px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.12); color:#fff; font-size:14px; outline:none; transition:all 0.2s;"
+               onfocus="this.style.borderColor='var(--red)';" onblur="this.style.borderColor='rgba(255,255,255,0.12)';">
+        <span style="position:absolute; left:14px; top:50%; transform:translateY(-50%); font-size:14px; color:var(--text-muted); pointer-events:none;">🌍</span>
+      </div>
+
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="selectOnlyWithStock()" style="border:1px solid rgba(255,255,255,0.1); font-size:12px;" title="Aktifkan semua negara yang memiliki stok cookie di database">
+          ⚡ Pilih yang Ada Stok
+        </button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="selectAllVisible()" style="border:1px solid rgba(255,255,255,0.1); font-size:12px;">
+          ✅ Pilih Semua
+        </button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="deselectAllVisible()" style="border:1px solid rgba(255,255,255,0.1); font-size:12px;">
+          ❌ Hapus Pilihan
+        </button>
+      </div>
+    </div>
+
+    <!-- Row 2: Status & Region Filter Pills -->
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-top:1px solid rgba(255,255,255,0.06); padding-top:14px;">
+      <!-- Status filter -->
+      <div style="display:flex; gap:6px; flex-wrap:wrap;" id="statusFilterPills">
+        <button type="button" class="pill-filter active" onclick="setStatusFilter('all', this)">Semua (<span id="countAll">{{ countries|length }}</span>)</button>
+        <button type="button" class="pill-filter" onclick="setStatusFilter('active', this)">🟢 Aktif (<span id="countActive">{{ total_active }}</span>)</button>
+        <button type="button" class="pill-filter" onclick="setStatusFilter('inactive', this)">⚪ Nonaktif (<span id="countInactive">{{ countries|length - total_active }}</span>)</button>
+        <button type="button" class="pill-filter" onclick="setStatusFilter('stock', this)">📦 Ada Stok (<span id="countStock">{{ total_with_stock }}</span>)</button>
+      </div>
+
+      <!-- Region filter -->
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:12px; color:var(--text-muted); font-weight:600;">Region:</span>
+        <select id="regionSelect" onchange="applyFilters()" style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); color:#fff; padding:6px 12px; border-radius:8px; font-size:12px; outline:none; cursor:pointer;">
+          <option value="all">Semua Region</option>
+          <option value="Asia & Pasifik">Asia & Pasifik</option>
+          <option value="Amerika">Amerika</option>
+          <option value="Eropa">Eropa</option>
+          <option value="Timur Tengah">Timur Tengah</option>
+          <option value="Afrika">Afrika</option>
+          <option value="Lainnya">Lainnya</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Custom Country Code Box -->
+<div class="card" style="margin-bottom:24px; padding:16px 20px; background:rgba(255,255,255,0.02); border:1px dashed rgba(255,255,255,0.12);">
+  <form method="POST" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin:0;">
+    <input type="hidden" name="action" value="add_custom">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span style="font-size:20px;">➕</span>
+      <div>
+        <div style="font-weight:700; font-size:14px;">Tambah Kode Negara Kustom</div>
+        <div style="font-size:12px; color:var(--text-muted);">Masukkan 2 huruf kode ISO negara jika belum ada di daftar di bawah (misal: LU, IS, KW).</div>
+      </div>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <input type="text" name="new_code" maxlength="2" placeholder="Kode (mis: LU)"
+             style="width:110px; text-transform:uppercase; text-align:center; padding:8px 12px; border-radius:8px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); color:#fff; font-weight:800; font-size:14px; outline:none;" required>
+      <button type="submit" class="btn btn-secondary" style="padding:8px 18px; font-size:13px; font-weight:700;">
+        + Tambahkan
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Main Countries Form -->
+<form method="POST" id="countriesForm">
+  <input type="hidden" name="action" value="save">
+
+  <div id="countriesGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:14px; margin-bottom:80px;">
+    {% for c in countries %}
+    <div class="country-toggle-card {% if c.is_allowed %}is-active{% endif %}"
+         data-code="{{ c.code }}"
+         data-name="{{ c.name|lower }}"
+         data-region="{{ c.region }}"
+         data-stock="{{ c.cookie_count }}"
+         data-allowed="{{ '1' if c.is_allowed else '0' }}"
+         onclick="toggleCountryCard(this, event)">
+
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%;">
+        <!-- Flag & Info -->
+        <div style="display:flex; align-items:center; gap:12px; min-width:0; flex:1;">
+          <div style="font-size:26px; line-height:1; flex-shrink:0;">
+            {% if c.code == 'XX' or c.code == 'UNKNOWN' %}
+              🌍
+            {% else %}
+              <img src="https://flagcdn.com/w40/{{ c.code|lower }}.png" width="30" height="20" alt="{{ c.name }}"
+                   onerror="this.onerror=null; this.parentElement.innerHTML='{{ c.flag }}';"
+                   style="border-radius:3px; object-fit:cover; box-shadow:0 1px 4px rgba(0,0,0,0.3);">
+            {% endif %}
+          </div>
+          <div style="min-width:0; flex:1;">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span class="country-name" style="font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="{{ c.name }}">{{ c.name }}</span>
+              <span class="country-badge" style="font-size:11px; font-weight:800; padding:1px 6px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--text-muted); flex-shrink:0;">{{ c.code }}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin-top:3px;">
+              <span style="font-size:11px; color:var(--text-muted);">{{ c.region }}</span>
+              <span style="font-size:10px; color:rgba(255,255,255,0.2);">•</span>
+              {% if c.cookie_count > 0 %}
+                <span style="font-size:11px; font-weight:700; color:#22c55e;">{{ c.cookie_count }} akun</span>
+              {% else %}
+                <span style="font-size:11px; color:rgba(255,255,255,0.3);">0 akun</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Custom Switch / Checkbox -->
+        <label class="custom-switch" onclick="event.stopPropagation();">
+          <input type="checkbox" name="countries" value="{{ c.code }}"
+                 {% if c.is_allowed %}checked{% endif %}
+                 onchange="syncCardState(this)">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Empty Search Results Placeholder -->
+  <div id="noMatchMessage" style="display:none; text-align:center; padding:50px 20px; background:rgba(255,255,255,0.02); border-radius:12px; border:1px dashed rgba(255,255,255,0.1);">
+    <div style="font-size:40px; margin-bottom:10px;">🔍</div>
+    <div style="font-weight:700; font-size:16px;">Tidak ada negara yang cocok</div>
+    <div style="font-size:13px; color:var(--text-muted); margin-top:4px;">Coba ubah kata kunci pencarian atau ganti filter.</div>
+  </div>
+
+  <!-- Floating Sticky Action Bar -->
+  <div class="sticky-save-bar">
+    <div style="display:flex; align-items:center; justify-content:space-between; max-width:1200px; margin:0 auto; width:100%;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <span style="font-size:20px;">🌍</span>
+        <div>
+          <span style="font-weight:800; font-size:15px; color:#fff;">Status: </span>
+          <span style="font-weight:900; font-size:15px; color:#22c55e;"><span class="badge-active-count">{{ total_active }}</span> Negara Terpilih</span>
+          <span style="font-size:12px; color:var(--text-muted); margin-left:8px;">(akan tampil pada dashboard user)</span>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary" style="padding:10px 32px; font-weight:800; font-size:14px; box-shadow:0 0 20px var(--red-glow);">
+        💾 Simpan Perubahan
+      </button>
+    </div>
+  </div>
+</form>
+
+<style>
+/* Country Card Styling */
+.country-toggle-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  display: flex;
+  align-items: center;
+}
+
+.country-toggle-card:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.18);
+  transform: translateY(-2px);
+}
+
+.country-toggle-card.is-active {
+  background: rgba(34, 197, 94, 0.05);
+  border-color: rgba(34, 197, 94, 0.35);
+  box-shadow: 0 4px 14px rgba(34, 197, 94, 0.08);
+}
+
+.country-toggle-card.is-active:hover {
+  border-color: rgba(34, 197, 94, 0.55);
+}
+
+/* Custom Switch Toggle */
+.custom-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.custom-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.custom-switch .slider {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(255,255,255,0.15);
+  transition: .25s;
+  border-radius: 24px;
+}
+
+.custom-switch .slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #fff;
+  transition: .25s;
+  border-radius: 50%;
+}
+
+.custom-switch input:checked + .slider {
+  background-color: #22c55e;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.4);
+}
+
+.custom-switch input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+/* Filter Pills */
+.pill-filter {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-muted);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pill-filter:hover {
+  background: rgba(255,255,255,0.09);
+  color: #fff;
+}
+
+.pill-filter.active {
+  background: var(--red);
+  color: #fff;
+  border-color: var(--red);
+  box-shadow: 0 0 12px var(--red-glow);
+}
+
+/* Floating Save Bar */
+.sticky-save-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(18, 18, 18, 0.95);
+  backdrop-filter: blur(14px);
+  border-top: 1px solid rgba(255,255,255,0.12);
+  padding: 14px 24px;
+  z-index: 999;
+  box-shadow: 0 -8px 24px rgba(0,0,0,0.5);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+</style>
+
+<script>
+let currentStatusFilter = 'all';
+
+function submitCountryForm() {
+  document.getElementById('countriesForm').submit();
+}
+
+function syncCardState(checkbox) {
+  const card = checkbox.closest('.country-toggle-card');
+  if (checkbox.checked) {
+    card.classList.add('is-active');
+    card.setAttribute('data-allowed', '1');
+  } else {
+    card.classList.remove('is-active');
+    card.setAttribute('data-allowed', '0');
+  }
+  updateActiveCount();
+}
+
+function toggleCountryCard(card, event) {
+  // Jika klik berasal langsung dari checkbox atau switch slider, biarkan onChange yang handle
+  if (event.target.tagName === 'INPUT' || event.target.closest('.custom-switch')) {
+    return;
+  }
+  const checkbox = card.querySelector('input[type="checkbox"]');
+  checkbox.checked = !checkbox.checked;
+  syncCardState(checkbox);
+}
+
+function updateActiveCount() {
+  const checkboxes = document.querySelectorAll('#countriesGrid input[type="checkbox"]');
+  let active = 0;
+  checkboxes.forEach(cb => {
+    if (cb.checked) active++;
+  });
+  const total = checkboxes.length;
+
+  document.querySelectorAll('.badge-active-count').forEach(el => el.textContent = active);
+  const statEl = document.getElementById('statActiveCount');
+  if (statEl) statEl.textContent = active;
+
+  const countActiveEl = document.getElementById('countActive');
+  if (countActiveEl) countActiveEl.textContent = active;
+
+  const countInactiveEl = document.getElementById('countInactive');
+  if (countInactiveEl) countInactiveEl.textContent = total - active;
+}
+
+function setStatusFilter(status, btn) {
+  currentStatusFilter = status;
+  document.querySelectorAll('#statusFilterPills .pill-filter').forEach(el => el.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilters();
+}
+
+function applyFilters() {
+  const query = (document.getElementById('countrySearch').value || '').trim().toLowerCase();
+  const selectedRegion = document.getElementById('regionSelect').value;
+  const cards = document.querySelectorAll('.country-toggle-card');
+  let visibleCount = 0;
+
+  cards.forEach(card => {
+    const code = (card.getAttribute('data-code') || '').toLowerCase();
+    const name = (card.getAttribute('data-name') || '').toLowerCase();
+    const region = card.getAttribute('data-region') || '';
+    const stock = parseInt(card.getAttribute('data-stock') || '0', 10);
+    const isAllowed = card.querySelector('input[type="checkbox"]').checked;
+
+    // Search matching
+    const matchSearch = !query || code.includes(query) || name.includes(query);
+
+    // Region matching
+    const matchRegion = (selectedRegion === 'all') || (region === selectedRegion);
+
+    // Status matching
+    let matchStatus = true;
+    if (currentStatusFilter === 'active') {
+      matchStatus = isAllowed;
+    } else if (currentStatusFilter === 'inactive') {
+      matchStatus = !isAllowed;
+    } else if (currentStatusFilter === 'stock') {
+      matchStatus = stock > 0;
+    }
+
+    if (matchSearch && matchRegion && matchStatus) {
+      card.style.display = 'flex';
+      visibleCount++;
+    } else {
+      card.style.display = 'none';
+    }
+  });
+
+  const noMatchMsg = document.getElementById('noMatchMessage');
+  if (noMatchMsg) {
+    noMatchMsg.style.display = visibleCount === 0 ? 'block' : 'none';
+  }
+}
+
+function selectOnlyWithStock() {
+  const cards = document.querySelectorAll('.country-toggle-card');
+  cards.forEach(card => {
+    const stock = parseInt(card.getAttribute('data-stock') || '0', 10);
+    const cb = card.querySelector('input[type="checkbox"]');
+    cb.checked = (stock > 0);
+    syncCardState(cb);
+  });
+}
+
+function selectAllVisible() {
+  const cards = document.querySelectorAll('.country-toggle-card');
+  cards.forEach(card => {
+    if (card.style.display !== 'none') {
+      const cb = card.querySelector('input[type="checkbox"]');
+      cb.checked = true;
+      syncCardState(cb);
+    }
+  });
+}
+
+function deselectAllVisible() {
+  const cards = document.querySelectorAll('.country-toggle-card');
+  cards.forEach(card => {
+    if (card.style.display !== 'none') {
+      const cb = card.querySelector('input[type="checkbox"]');
+      cb.checked = false;
+      syncCardState(cb);
+    }
+  });
+}
+
+// Inisialisasi hitungan awal
+document.addEventListener('DOMContentLoaded', () => {
+  updateActiveCount();
+});
+</script>
+
+{% endblock %}

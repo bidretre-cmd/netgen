@@ -54,7 +54,7 @@
     </div>
 
     <!-- ─── Ads Distribution Slider ───────────────────────────── -->
-    <div class="form-group mb-4">
+    <div class="form-group mb-4" style="padding-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.08);">
       <label class="form-label" style="font-weight: 800; font-size: 16px;">Standard with Ads Distribution</label>
       <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
         Set the probability (0-100%) that a user will receive a <strong>Standard with Ads</strong> account when they generate a token.
@@ -63,6 +63,21 @@
       <div style="display: flex; align-items: center; gap: 15px;">
         <input type="range" name="ads_percentage" id="ads_slider" min="0" max="100" value="{{ ads_percentage }}" style="flex: 1;" oninput="document.getElementById('ads_val').textContent = this.value + '%'">
         <div style="background: rgba(255,255,255,0.05); padding: 8px 16px; border-radius: 8px; font-weight: 900; font-size: 18px; color: var(--red); width: 80px; text-align: center;" id="ads_val">{{ ads_percentage }}%</div>
+      </div>
+    </div>
+
+    <!-- ─── Country Display Settings ────────────────────────── -->
+    <div class="form-group mb-4">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
+        <div>
+          <label class="form-label" style="font-weight: 800; font-size: 16px; margin-bottom:4px;">🌍 Negara Tampil di Dashboard User</label>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 0; line-height: 1.5;">
+            Saat ini ada <strong style="color:#22c55e;">{{ allowed_countries_count }} negara</strong> yang aktif dan ditampilkan pada client dashboard.
+          </p>
+        </div>
+        <a href="{{ url_for('admin.countries') }}" class="btn btn-secondary" style="padding:9px 20px; font-size:13px; font-weight:700; white-space:nowrap; border:1px solid rgba(255,255,255,0.15);">
+          🌍 Kelola Negara →
+        </a>
       </div>
     </div>
 
